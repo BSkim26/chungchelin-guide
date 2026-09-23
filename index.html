@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="충주 시민이 직접 올리고 평가하는 맛집 가이드">
+<title>충슐랭 가이드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+:root{
+  --bg:#FAF7F5; --surface:#FFFFFF; --ink:#211B1B; --muted:#6F6464; --line:#E8DFDC;
+  --red:#A8232B; --red-soft:#F6E6E5; --leaf:#3E6A3A; --leaf-soft:#E7EFE3; --focus:#A8232B; --ph:#EFE7E4;
+  --serif:"Gowun Batang","Nanum Myeongjo",serif;
+  --sans:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#161212; --surface:#201A1A; --ink:#F1EBE9; --muted:#AA9E9C; --line:#362D2C;
+    --red:#E8636A; --red-soft:#3A2224; --leaf:#8DBB84; --leaf-soft:#233023; --focus:#E8636A; --ph:#2A2222;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#161212; --surface:#201A1A; --ink:#F1EBE9; --muted:#AA9E9C; --line:#362D2C;
+  --red:#E8636A; --red-soft:#3A2224; --leaf:#8DBB84; --leaf-soft:#233023; --focus:#E8636A; --ph:#2A2222;
+}
+*{box-sizing:border-box}
+html{color-scheme:light}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6}
+.wrap{max-width:1040px;margin:0 auto;padding-inline:20px;padding-block:0 64px}
+a{color:var(--red)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+/* masthead */
+.mast{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end;padding-block:40px 28px;border-bottom:2px solid var(--ink)}
+.eyebrow{font-size:12px;letter-spacing:.18em;color:var(--red);font-weight:600;text-transform:uppercase}
+h1{font-family:var(--serif);font-weight:700;font-size:clamp(40px,7vw,68px);line-height:1.02;margin:6px 0 10px;letter-spacing:-.02em;text-wrap:balance}
+h1 .r{color:var(--red)}
+.lede{margin:0;color:var(--muted);max-width:52ch}
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--ink);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:2px;cursor:pointer;font-weight:600;white-space:nowrap}
+.btn:hover{background:var(--red);border-color:var(--red)}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.ghost:hover{color:var(--bg);background:var(--ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* legend */
+.legend{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}
+.legend div{padding:14px 16px 14px 0;display:flex;flex-direction:column;gap:2px}
+.legend div+div{padding-left:16px;border-left:1px solid var(--line)}
+.legend small{color:var(--muted);font-size:12.5px}
+
+/* toolbar */
+.tools{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;padding-block:22px 10px}
+.search{flex:1 1 240px;display:flex;border-bottom:1px solid var(--ink)}
+.search input{flex:1;border:0;background:transparent;padding:8px 2px;outline:none;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);padding:5px 12px;border-radius:99px;cursor:pointer;font-size:13.5px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+select.sort{border:1px solid var(--line);background:var(--surface);padding:6px 10px;border-radius:2px}
+.count{color:var(--muted);font-size:13px;padding-block:6px 0}
+
+/* entries */
+.list{list-style:none;margin:0;padding:0}
+.entry{display:grid;grid-template-columns:128px 1fr 150px;gap:8px 24px;padding-block:24px;border-bottom:1px solid var(--line);cursor:pointer}
+.entry:hover h2{color:var(--red)}
+.cover{width:128px;aspect-ratio:1;max-width:100%;background:var(--ph);border-radius:2px;overflow:hidden;display:grid;place-items:center;color:var(--muted);position:relative}
+.cover img{width:100%;height:100%;object-fit:cover;display:block}
+.cover svg{width:34px;height:34px;fill:currentColor;opacity:.35}
+.cover .pc{position:absolute;right:5px;bottom:5px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:1px 6px;border-radius:99px}
+.entry h2{font-family:var(--serif);font-size:26px;line-height:1.2;margin:0 0 4px;transition:color .15s;text-wrap:balance}
+.meta{font-size:13.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 10px}
+.meta span+span::before{content:"·";margin-right:10px;color:var(--line)}
+.desc{margin:10px 0 0;max-width:62ch}
+.sig{margin-top:8px;font-size:13.5px}
+.sig b{color:var(--leaf);font-weight:600}
+.crit-line{margin-top:8px;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.crit-line b{color:var(--ink);font-family:var(--mono);font-weight:500}
+.score{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.num{font-family:var(--mono);font-size:30px;line-height:1;font-variant-numeric:tabular-nums}
+.num small{font-size:14px;color:var(--muted)}
+.rc{font-size:12.5px;color:var(--muted)}
+.dist{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--red);padding:3px 10px;border-radius:99px;background:var(--red-soft);width:max-content}
+.dist.pending{color:var(--muted);background:transparent;border:1px dashed var(--line)}
+.dist.bib{color:var(--leaf);background:var(--leaf-soft)}
+.blos{display:inline-flex;gap:2px}
+.blos svg{width:15px;height:15px;fill:currentColor}
+
+.state{padding:60px 0;text-align:center;color:var(--muted)}
+.state b{display:block;font-family:var(--serif);font-size:22px;color:var(--ink);margin-bottom:6px}
+
+/* dialogs */
+dialog{border:0;padding:0;background:var(--surface);color:var(--ink);width:min(720px,calc(100% - 24px));max-height:calc(100% - 32px);border-radius:4px;box-shadow:0 24px 60px rgba(0,0,0,.28)}
+dialog::backdrop{background:rgba(20,12,12,.55)}
+.dlg{padding:28px}
+.dlg-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+.dlg h3{font-family:var(--serif);font-size:30px;line-height:1.15;margin:0 0 6px}
+.x{border:0;background:transparent;font-size:26px;line-height:1;cursor:pointer;color:var(--muted);padding:4px}
+.field{display:flex;flex-direction:column;gap:4px;margin-top:14px}
+.field>label,.flabel{font-size:13px;font-weight:600}
+.field input:not([type="radio"]):not([type="file"]):not([type="checkbox"]),.field select,.field textarea{border:1px solid var(--line);background:var(--bg);padding:9px 11px;border-radius:2px;width:100%}
+.field textarea{min-height:96px;resize:vertical}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.hint{font-size:12.5px;color:var(--muted)}
+.err{color:var(--red);font-size:13px;margin-top:10px;min-height:1em}
+.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;flex-wrap:wrap}
+
+/* gallery */
+.gallery{display:flex;gap:8px;overflow-x:auto;padding-block:4px 8px;margin-top:16px;scrollbar-width:thin}
+.gallery button,.rv-photos button{flex:0 0 auto;border:0;padding:0;background:var(--ph);cursor:zoom-in;border-radius:2px;overflow:hidden}
+.gallery img{height:150px;width:auto;display:block}
+.rv-photos{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.rv-photos img{width:84px;height:84px;object-fit:cover;display:block}
+
+/* criteria summary */
+.summary{display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center;padding-block:18px;margin-top:14px;border-block:1px solid var(--line)}
+.bars{display:grid;gap:7px}
+.bar{display:grid;grid-template-columns:78px 1fr 34px;gap:10px;align-items:center;font-size:13px;font-variant-numeric:tabular-nums}
+.bar span:last-child{font-family:var(--mono);text-align:right}
+.bar i{display:block;height:7px;background:var(--line);border-radius:4px;overflow:hidden}
+.bar i em{display:block;height:100%;background:var(--red)}
+.revisit{font-size:13px;color:var(--leaf);font-weight:600}
+.section-t{font-family:var(--serif);font-size:19px;margin:24px 0 6px}
+
+/* reviews */
+.reviews{list-style:none;padding:0;margin:0}
+.rv{padding-block:14px;border-bottom:1px solid var(--line)}
+.rv-top{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.rv-top img{width:24px;height:24px;border-radius:50%}
+.rv-top .who{color:var(--ink);font-weight:600}
+.rv-sub{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12.5px;color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums}
+.rv-sub b{color:var(--ink);font-weight:500}
+.rv p{margin:6px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.stars{color:var(--red);letter-spacing:1px}
+.tag{font-size:11.5px;color:var(--leaf);border:1px solid currentColor;border-radius:99px;padding:0 7px}
+.linkbtn{border:0;background:none;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:12.5px;padding:0}
+.linkbtn:hover{color:var(--red)}
+
+/* rating form */
+.crit-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-top:10px}
+.crit{display:flex;flex-direction:column;gap:2px}
+.crit-h{display:flex;justify-content:space-between;align-items:baseline;font-size:13px}
+.crit-h b{font-weight:600}
+.crit-h span{color:var(--muted);font-size:12px}
+.picker{display:flex;gap:2px;flex-direction:row-reverse;justify-content:flex-end;border:0;margin:0;padding:0}
+.picker input{position:absolute;opacity:0;pointer-events:none}
+.picker label{font-size:26px;line-height:1;color:var(--line);cursor:pointer}
+.picker input:checked ~ label,.picker label:hover,.picker label:hover ~ label{color:var(--red)}
+.picker input:focus-visible + label{outline:2px solid var(--focus)}
+.overall{display:flex;align-items:baseline;gap:10px;margin-top:12px;padding:10px 14px;background:var(--bg);border:1px solid var(--line)}
+.overall .num{font-size:24px}
+.check{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:14px;cursor:pointer}
+.check input{width:18px;height:18px;accent-color:var(--red)}
+
+/* photo picker */
+.drop{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ph{position:relative;width:84px;height:84px;border-radius:2px;overflow:hidden;background:var(--ph)}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph button{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;border:0;background:rgba(0,0,0,.65);color:#fff;cursor:pointer;line-height:1;font-size:14px}
+.addph{width:84px;height:84px;border:1px dashed var(--muted);border-radius:2px;display:grid;place-items:center;text-align:center;font-size:12px;color:var(--muted);cursor:pointer;background:var(--bg)}
+.addph:hover{color:var(--red);border-color:var(--red)}
+.addph input{position:absolute;opacity:0;width:1px;height:1px}
+.addph:focus-within{outline:2px solid var(--focus)}
+
+.note{background:var(--bg);border:1px solid var(--line);padding:12px 14px;font-size:13.5px;color:var(--muted);margin-top:16px}
+
+#imgDlg{width:auto;max-width:calc(100% - 24px);background:#000}
+#imgDlg img{display:block;max-width:100%;max-height:calc(100vh - 60px);margin:auto}
+#imgDlg .x{position:absolute;top:6px;right:8px;color:#fff;text-shadow:0 1px 3px #000}
+#imgDlg .ld{color:#ccc;padding:60px 80px;font-size:14px}
+
+footer{margin-top:40px;padding-top:18px;border-top:2px solid var(--ink);font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+
+@media (max-width:720px){
+  .mast{grid-template-columns:1fr}
+  .legend{grid-template-columns:1fr 1fr}
+  .legend div:nth-child(3){padding-left:0;border-left:0}
+  .legend div:nth-child(n+3){border-top:1px solid var(--line)}
+  .entry{grid-template-columns:88px 1fr;gap:6px 14px}
+  .cover{width:88px}
+  .entry h2{font-size:21px}
+  .score{grid-column:1 / -1;flex-direction:row;align-items:center;justify-content:flex-start;gap:12px;text-align:left}
+  .row2,.crit-grid{grid-template-columns:1fr}
+  .dlg{padding:20px}
+  .summary{grid-template-columns:1fr;gap:14px}
+  .gallery img{height:120px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="blossom" viewBox="0 0 24 24"><path d="M12 2.5c1.6 0 2.7 1.5 2.4 3.3 1.5-1 3.4-.6 4.1.9.8 1.5-.1 3.2-1.8 3.8 1.7.6 2.6 2.3 1.8 3.8-.7 1.5-2.6 1.9-4.1.9.3 1.8-.8 3.3-2.4 3.3s-2.7-1.5-2.4-3.3c-1.5 1-3.4.6-4.1-.9-.8-1.5.1-3.2 1.8-3.8-1.7-.6-2.6-2.3-1.8-3.8.7-1.5 2.6-1.9 4.1-.9C9.3 4 10.4 2.5 12 2.5Zm0 7a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Z"/></symbol>
+</svg>
+
+<div class="wrap">
+  <header class="mast">
+    <div>
+      <div class="eyebrow">Chungju · 2026 Edition</div>
+      <h1>충<span class="r">슐랭</span> 가이드</h1>
+      <p class="lede">충주 사람들이 직접 올리고, 가본 사람이 맛·서비스·분위기·가성비를 평가하는 맛집 안내서. 리뷰가 쌓이면 사과꽃이 붙습니다.</p>
+    </div>
+    <button class="btn" id="addBtn" type="button">+ 맛집 등록</button>
+  </header>
+
+  <section class="legend" aria-label="평가 기준">
+    <div><span class="dist"><span class="blos"><svg><use href="#blossom"/></svg><svg><use href="#blossom"/></svg><svg><use href="#blossom"/></svg></span></span><small>종합 4.5 이상 · 일부러 충주에 올 가치</small></div>
+    <div><span class="dist"><span class="blos"><svg><use href="#blossom"/></svg><svg><use href="#blossom"/></svg></span></span><small>종합 4.0 이상 · 먼 길 돌아갈 가치</small></div>
+    <div><span class="dist"><span class="blos"><svg><use href="#blossom"/></svg></span></span><small>종합 3.5 이상 · 지나다 들를 가치</small></div>
+    <div><span class="dist pending">심사 중</span><small>리뷰 3개 미만 · 평가가 더 필요해요</small></div>
+  </section>
+
+  <div class="tools">
+    <div class="search"><input id="q" type="search" placeholder="가게 이름, 메뉴, 동네로 찾기" aria-label="검색"></div>
+    <select class="sort" id="sort" aria-label="정렬">
+      <option value="score">종합 평점 순</option>
+      <option value="taste">맛 순</option>
+      <option value="service">서비스 순</option>
+      <option value="mood">분위기·청결 순</option>
+      <option value="value">가성비 순</option>
+      <option value="reviews">리뷰 많은 순</option>
+      <option value="new">최근 등록 순</option>
+    </select>
+  </div>
+  <div class="chips" id="chips" role="group" aria-label="분류"></div>
+  <div class="count" id="count"></div>
+
+  <ul class="list" id="list"></ul>
+  <div class="state" id="state"><b>맛집 목록을 불러오는 중</b>잠시만 기다려 주세요.</div>
+
+  <footer>
+    <span>충슐랭 가이드 — 충주 시민 참여형 맛집 평가</span>
+    <span>종합 점수 = 맛·서비스·분위기·가성비 네 항목 평균</span>
+  </footer>
+</div>
+
+<!-- add place -->
+<dialog id="addDlg" aria-labelledby="addT">
+  <form class="dlg" id="addForm" novalidate>
+    <div class="dlg-head"><h3 id="addT">맛집 등록</h3><button class="x" type="button" data-close aria-label="닫기">×</button></div>
+    <p class="hint" style="margin:0">가본 곳을 알려주세요. 등록 후 다른 사람들이 리뷰를 남기면 평점이 매겨집니다.</p>
+    <div class="field"><label for="f-name">가게 이름 *</label><input id="f-name" maxlength="40" required></div>
+    <div class="row2">
+      <div class="field"><label for="f-cat">분류 *</label><select id="f-cat" required></select></div>
+      <div class="field"><label for="f-area">동네</label><input id="f-area" list="areas" maxlength="20" placeholder="예: 연수동"></div>
+    </div>
+    <datalist id="areas"></datalist>
+    <div class="field"><label for="f-addr">주소</label><input id="f-addr" maxlength="80" placeholder="충주시 …"></div>
+    <div class="row2">
+      <div class="field"><label for="f-sig">대표 메뉴</label><input id="f-sig" maxlength="40" placeholder="예: 올갱이해장국"></div>
+      <div class="field"><label for="f-price">가격대 (1인)</label>
+        <select id="f-price"><option value="1">₩ · 1만원 이하</option><option value="2" selected>₩₩ · 1~2만원</option><option value="3">₩₩₩ · 2~4만원</option><option value="4">₩₩₩₩ · 4만원 이상</option></select></div>
+    </div>
+    <div class="field"><label for="f-desc">한 줄 소개</label><textarea id="f-desc" maxlength="200" placeholder="어떤 점이 좋은지 짧게 적어주세요"></textarea></div>
+    <div class="field"><span class="flabel">가게 사진 (최대 3장)</span><div class="drop" id="addPhotos"></div><span class="hint">외관·간판·대표 메뉴 사진이 좋아요. 올리면 자동으로 크기가 줄어듭니다.</span></div>
+    <div class="err" id="addErr" role="alert"></div>
+    <div class="actions"><button class="btn ghost" type="button" data-close>취소</button><button class="btn" type="submit" id="addSubmit">등록하기</button></div>
+  </form>
+</dialog>
+
+<!-- detail -->
+<dialog id="detDlg" aria-labelledby="detT">
+  <div class="dlg">
+    <div id="detInfo"></div>
+    <div id="detForm"></div>
+    <div id="detReviews"></div>
+  </div>
+</dialog>
+
+<!-- photo viewer -->
+<dialog id="imgDlg" aria-label="사진 크게 보기">
+  <button class="x" type="button" data-close aria-label="닫기">×</button>
+  <div id="imgBox"></div>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script>
+const CATS = ["한식","해장국·탕","면·냉면","고기·구이","중식","일식·회","분식","카페·디저트","기타"];
+const AREAS = ["연수동","성내동","교현동","문화동","칠금동","호암동","용산동","봉방동","금릉동","중앙탑면","동량면","수안보면","살미면","주덕읍"];
+const CRIT = [
+  ["taste","맛",["","실망","아쉬움","무난","맛있음","최고"]],
+  ["service","서비스",["","불친절","아쉬움","보통","친절","감동"]],
+  ["mood","분위기·청결",["","불편","아쉬움","보통","쾌적","훌륭"]],
+  ["value","가성비",["","비쌈","조금 비쌈","적당","저렴한 편","혜자"]]
+];
+const MAX_PH = 3;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const blossom = n => `<span class="blos">${'<svg aria-hidden="true"><use href="#blossom"/></svg>'.repeat(n)}</span>`;
+const starTxt = v => { const n = Math.round(v); return "★".repeat(n) + "☆".repeat(5 - n); };
+const won = n => "₩".repeat(n || 2);
+const PLATE = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v8a2 2 0 0 1-1.5 1.94V22h-2V11.94A2 2 0 0 1 2 10V2h1.5v6h1V2h1v6h1V2H7Zm10 0c2 0 3.5 2.5 3.5 6 0 2.4-1 4-2.5 4.6V22h-2V2h1Z"/></svg>`;
+const store = { get(k){ try { return localStorage.getItem(k); } catch { return null; } }, set(k, v){ try { localStorage.setItem(k, v); } catch {} } };
+
+let sb = null, me = null;           // me = 로그인한(익명 포함) 사용자 id
+let places = [], photos = [], detailReviews = [];
+let filter = "전체", openId = null;
+
+$("#f-cat").innerHTML = CATS.map(c => `<option>${c}</option>`).join("");
+$("#areas").innerHTML = AREAS.map(a => `<option value="${a}">`).join("");
+function renderChips(){
+  $("#chips").innerHTML = ["전체", ...CATS].map(c =>
+    `<button type="button" class="chip" aria-pressed="${c === filter}" data-cat="${esc(c)}">${esc(c)}</button>`).join("");
+}
+$("#chips").addEventListener("click", e => {
+  const b = e.target.closest("[data-cat]"); if (!b) return;
+  filter = b.dataset.cat; renderChips(); render();
+});
+$("#q").addEventListener("input", render);
+{ const s = store.get("csl-sort"); if (s && $(`#sort option[value="${s}"]`)) $("#sort").value = s; }
+$("#sort").addEventListener("change", () => { store.set("csl-sort", $("#sort").value); render(); });
+renderChips();
+
+/* ---------- 인증: 가입 없이 익명 로그인 (처음 쓸 때만 만듦) ---------- */
+async function ensureAuth(){
+  if (me) return me;
+  const { data, error } = await sb.auth.signInAnonymously();
+  if (error) throw { code: "auth", message: error.message };
+  me = data.user.id;
+  return me;
+}
+function errMsg(e){
+  const m = String(e?.message || "");
+  if (e?.code === "auth") return "참여 기능이 아직 꺼져 있어요. 관리자가 Supabase에서 익명 로그인(Anonymous sign-ins)을 켜야 해요.";
+  if (e?.code === "23505" || /duplicate/i.test(m)) return "이미 등록된 가게예요. 목록에서 찾아 리뷰를 남겨 주세요.";
+  if (/최대 3장/.test(m)) return "사진은 최대 3장까지 올릴 수 있어요.";
+  if (e?.code === "42501" || /row-level security/i.test(m)) return "권한이 없어요. 페이지를 새로고침한 뒤 다시 시도해 주세요.";
+  return "저장하지 못했어요. 잠시 후 다시 시도해 주세요." + (m ? ` (${m})` : "");
+}
+
+/* ---------- 사진: 브라우저에서 줄인 뒤 Storage에 업로드 ---------- */
+async function loadImage(file){
+  if (window.createImageBitmap){ try { return await createImageBitmap(file, { imageOrientation: "from-image" }); } catch {} }
+  return await new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => { res(im); URL.revokeObjectURL(url); };
+    im.onerror = () => { rej(new Error("decode")); URL.revokeObjectURL(url); };
+    im.src = url;
+  });
+}
+function toJpeg(img, maxSide, q){
+  const k = Math.min(1, maxSide / Math.max(img.width, img.height));
+  const c = document.createElement("canvas");
+  c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+  const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+  g.drawImage(img, 0, 0, c.width, c.height);
+  return new Promise(res => c.toBlob(res, "image/jpeg", q));
+}
+async function prepPhoto(file){
+  if (!file.type.startsWith("image/")) throw new Error("type");
+  const img = await loadImage(file);
+  const full = await toJpeg(img, 1600, 0.82), thumb = await toJpeg(img, 400, 0.75);
+  return { full, thumb, preview: URL.createObjectURL(thumb) };
+}
+const photoErr = e => e?.message === "type" ? "사진 파일만 올릴 수 있어요." :
+  e?.message === "decode" ? "이 사진 형식은 열 수 없어요. JPG나 PNG로 올려 주세요 (아이폰 HEIC는 '가장 호환성 높은 형식'으로 저장)." :
+  "사진을 줄이지 못했어요. 다른 사진으로 시도해 주세요.";
+const photoUrl = (path, thumb) => sb.storage.from("photos").getPublicUrl(path + (thumb ? "_t.jpg" : ".jpg")).data.publicUrl;
+
+function photoPicker(el, errEl, keep = []){
+  const st = { keep: [...keep], removed: [], items: [], busy: 0 };
+  const inputId = el.id + "-file";
+  const draw = () => {
+    const total = st.keep.length + st.items.length;
+    el.innerHTML =
+      st.keep.map((t, i) => `<div class="ph"><img src="${esc(photoUrl(t.path, true))}" alt="올린 사진"><button type="button" data-k="${i}" aria-label="사진 빼기">×</button></div>`).join("") +
+      st.items.map((t, i) => `<div class="ph"><img src="${esc(t.preview)}" alt="새 사진"><button type="button" data-n="${i}" aria-label="사진 빼기">×</button></div>`).join("") +
+      (st.busy ? `<div class="addph">줄이는 중…</div>` : "") +
+      (total + st.busy < MAX_PH ? `<label class="addph" for="${inputId}">+ 사진<br>${total}/${MAX_PH}<input type="file" id="${inputId}" accept="image/*" multiple></label>` : "");
+  };
+  el.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.k != null) st.removed.push(st.keep.splice(+b.dataset.k, 1)[0]);
+    if (b.dataset.n != null) st.items.splice(+b.dataset.n, 1);
+    draw();
+  });
+  el.addEventListener("change", async e => {
+    if (e.target.type !== "file") return;
+    const files = [...e.target.files].slice(0, MAX_PH - st.keep.length - st.items.length);
+    errEl.textContent = ""; st.busy = files.length; draw();
+    for (const f of files){
+      try { st.items.push(await prepPhoto(f)); } catch (err) { errEl.textContent = photoErr(err); }
+      st.busy--; draw();
+    }
+  });
+  draw();
+  return st;
+}
+async function uploadPhotos(items, placeId, reviewId){
+  for (const it of items){
+    const path = `${me}/${crypto.randomUUID()}`;
+    const bucket = sb.storage.from("photos");
+    let r = await bucket.upload(path + ".jpg", it.full, { contentType: "image/jpeg" });
+    if (r.error) throw r.error;
+    r = await bucket.upload(path + "_t.jpg", it.thumb, { contentType: "image/jpeg" });
+    if (r.error) throw r.error;
+    const { error } = await sb.from("photos").insert({ place_id: placeId, review_id: reviewId || null, path });
+    if (error){ await bucket.remove([path + ".jpg", path + "_t.jpg"]); throw error; }
+  }
+}
+async function removePhotos(list){
+  if (!list.length) return;
+  await sb.from("photos").delete().in("id", list.map(p => p.id));
+  await sb.storage.from("photos").remove(list.flatMap(p => [p.path + ".jpg", p.path + "_t.jpg"]));
+}
+function viewPhoto(id){
+  const p = photos.find(x => x.id === id); if (!p) return;
+  $("#imgBox").innerHTML = `<img src="${esc(photoUrl(p.path, false))}" alt="사진">`;
+  if (!$("#imgDlg").open) $("#imgDlg").showModal();
+}
+
+/* ---------- 점수 ---------- */
+function stats(p){
+  const n = p.review_count || 0, avg = p.overall_avg || 0;
+  const crit = { taste: p.taste_avg || 0, service: p.service_avg || 0, mood: p.mood_avg || 0, value: p.value_avg || 0 };
+  const pending = n < 3;
+  const level = pending ? 0 : avg >= 4.5 ? 3 : avg >= 4.0 ? 2 : avg >= 3.5 ? 1 : 0;
+  return { n, avg, crit, revisit: p.revisit_rate || 0, level, pending };
+}
+function distBadge(s){
+  if (s.pending) return `<span class="dist pending">심사 중</span>`;
+  if (s.level) return `<span class="dist" title="사과꽃 ${s.level}개">${blossom(s.level)}</span>`;
+  return `<span class="dist bib">충주 추천</span>`;
+}
+const placePhotos = pid => photos.filter(t => t.place_id === pid);
+
+/* ---------- 데이터 불러오기 ---------- */
+async function loadAll(){
+  const [a, b] = await Promise.all([
+    sb.from("place_stats").select("*"),
+    sb.from("photos").select("id,place_id,review_id,author,path,created_at").order("created_at")
+  ]);
+  if (a.error) throw a.error;
+  places = a.data; photos = b.data || [];
+  render();
+}
+async function loadReviews(pid){
+  const { data, error } = await sb.from("reviews").select("*").eq("place_id", pid).order("created_at", { ascending: false });
+  if (!error && openId === pid) detailReviews = data;
+}
+let reloadT = null;
+function scheduleReload(){
+  clearTimeout(reloadT);
+  reloadT = setTimeout(async () => { await loadAll().catch(() => {}); if (openId){ await loadReviews(openId); renderDetail(); } }, 300);
+}
+
+/* ---------- 목록 ---------- */
+function render(){
+  const q = $("#q").value.trim().toLowerCase();
+  const sort = $("#sort").value;
+  let rows = places.map(p => ({ p, s: stats(p), ph: placePhotos(p.id) }))
+    .filter(({p}) => filter === "전체" || p.category === filter)
+    .filter(({p}) => !q || [p.name, p.signature, p.area, p.description, p.category].join(" ").toLowerCase().includes(q));
+  const key = r => sort === "score" ? r.s.avg : r.s.crit[sort];
+  rows.sort((a, b) =>
+    sort === "reviews" ? b.s.n - a.s.n || b.s.avg - a.s.avg :
+    sort === "new" ? String(b.p.created_at).localeCompare(String(a.p.created_at)) :
+    (b.s.n ? 1 : 0) - (a.s.n ? 1 : 0) || (b.s.pending ? 0 : 1) - (a.s.pending ? 0 : 1) || key(b) - key(a) || b.s.n - a.s.n);
+
+  $("#count").textContent = places.length ? `${rows.length}곳 / 전체 ${places.length}곳` : "";
+  const st = $("#state");
+  if (!places.length){ st.hidden = false; st.innerHTML = `<b>아직 등록된 맛집이 없어요</b>첫 번째 충주 맛집을 등록해 주세요.`; }
+  else if (!rows.length){ st.hidden = false; st.innerHTML = `<b>조건에 맞는 곳이 없어요</b>검색어나 분류를 바꿔 보세요.`; }
+  else st.hidden = true;
+
+  $("#list").innerHTML = rows.map(({p, s, ph}) => `
+    <li class="entry" tabindex="0" role="button" data-id="${esc(p.id)}" aria-label="${esc(p.name)} 자세히 보기">
+      <div class="cover">${ph.length ? `<img src="${esc(photoUrl(ph[0].path, true))}" alt="" loading="lazy">${ph.length > 1 ? `<span class="pc">사진 ${ph.length}</span>` : ""}` : PLATE}</div>
+      <div>
+        <h2>${esc(p.name)}</h2>
+        <div class="meta"><span>${esc(p.category)}</span>${p.area ? `<span>${esc(p.area)}</span>` : ""}<span>${won(p.price)}</span></div>
+        ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ""}
+        ${p.signature ? `<div class="sig"><b>대표 메뉴</b> ${esc(p.signature)}</div>` : ""}
+        ${s.n ? `<div class="crit-line">${CRIT.map(([k, l]) => `<span>${l} <b>${s.crit[k].toFixed(1)}</b></span>`).join("")}</div>` : ""}
+      </div>
+      <div class="score">
+        <div class="num">${s.n ? s.avg.toFixed(1) : "–"}<small> / 5</small></div>
+        ${distBadge(s)}
+        <div class="rc">리뷰 ${s.n}개${s.n ? ` · 재방문 ${Math.round(s.revisit * 100)}%` : ""}</div>
+      </div>
+    </li>`).join("");
+}
+$("#list").addEventListener("click", e => { const li = e.target.closest(".entry"); if (li) openDetail(li.dataset.id); });
+$("#list").addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("entry")) { e.preventDefault(); openDetail(e.target.dataset.id); } });
+
+/* ---------- 대화상자 ---------- */
+document.querySelectorAll("dialog").forEach(d => {
+  d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-close]")) d.close(); });
+});
+$("#detDlg").addEventListener("close", () => { openId = null; detailReviews = []; });
+
+let addPick = null;
+$("#addBtn").addEventListener("click", () => {
+  if (!sb) return;
+  $("#addForm").reset(); $("#addErr").textContent = "";
+  addPick = photoPicker($("#addPhotos"), $("#addErr"));
+  $("#addDlg").showModal(); $("#f-name").focus();
+});
+$("#addForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = $("#f-name").value.trim();
+  if (!name){ $("#addErr").textContent = "가게 이름을 입력해 주세요."; return; }
+  if (places.some(p => p.name.replace(/\s/g,"").toLowerCase() === name.replace(/\s/g,"").toLowerCase())){ $("#addErr").textContent = "이미 등록된 가게예요. 목록에서 찾아 리뷰를 남겨 주세요."; return; }
+  if (addPick?.busy){ $("#addErr").textContent = "사진을 줄이는 중이에요. 잠시 후 다시 눌러 주세요."; return; }
+  const btn = $("#addSubmit"); btn.disabled = true; btn.textContent = "등록 중…";
+  try {
+    await ensureAuth();
+    const { data, error } = await sb.from("places").insert({
+      name, category: $("#f-cat").value, area: $("#f-area").value.trim(), address: $("#f-addr").value.trim(),
+      signature: $("#f-sig").value.trim(), price: Number($("#f-price").value), description: $("#f-desc").value.trim()
+    }).select("id").single();
+    if (error) throw error;
+    if (addPick?.items.length){ btn.textContent = "사진 올리는 중…"; await uploadPhotos(addPick.items, data.id, null); }
+    $("#addDlg").close();
+    await loadAll();
+    openDetail(data.id);
+  } catch (err) {
+    $("#addErr").textContent = errMsg(err);
+  } finally { btn.disabled = false; btn.textContent = "등록하기"; }
+});
+
+/* ---------- 상세 ---------- */
+async function openDetail(id){
+  openId = id; detailReviews = [];
+  renderDetail(); renderForm();
+  if (!$("#detDlg").open) $("#detDlg").showModal();
+  $("#detDlg").scrollTop = 0;
+  await loadReviews(id);
+  renderDetail(); renderForm();
+}
+
+function renderDetail(){
+  const p = places.find(x => x.id === openId);
+  if (!p){ if ($("#detDlg").open) $("#detDlg").close(); return; }
+  const s = stats(p), ph = placePhotos(p.id);
+
+  $("#detInfo").innerHTML = `
+    <div class="dlg-head">
+      <div>
+        <h3 id="detT">${esc(p.name)}</h3>
+        <div class="meta"><span>${esc(p.category)}</span>${p.area ? `<span>${esc(p.area)}</span>` : ""}<span>${won(p.price)}</span></div>
+      </div>
+      <button class="x" type="button" data-close aria-label="닫기">×</button>
+    </div>
+    ${ph.length ? `<div class="gallery">${ph.map(t => `<button type="button" data-ph="${esc(t.id)}" aria-label="사진 크게 보기"><img src="${esc(photoUrl(t.path, true))}" alt="" loading="lazy"></button>`).join("")}</div>` : ""}
+    ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ""}
+    ${p.signature ? `<div class="sig"><b>대표 메뉴</b> ${esc(p.signature)}</div>` : ""}
+    ${p.address ? `<div class="sig"><b>주소</b> ${esc(p.address)} · <a href="https://map.naver.com/p/search/${encodeURIComponent(p.address)}" target="_blank" rel="noopener">지도에서 보기</a></div>` : ""}
+    <div class="summary">
+      <div class="score" style="align-items:flex-start;text-align:left">
+        <div class="num" style="font-size:44px">${s.n ? s.avg.toFixed(1) : "–"}<small> / 5</small></div>
+        ${distBadge(s)}
+        <div class="rc">리뷰 ${s.n}개${s.pending ? ` · ${3 - s.n}개 더 모이면 등급 결정` : ""}</div>
+        ${s.n ? `<div class="revisit">${Math.round(s.revisit * 100)}%가 다시 가고 싶대요</div>` : ""}
+      </div>
+      <div class="bars" aria-label="항목별 평균">
+        ${CRIT.map(([k, l]) => `<div class="bar"><span>${l}</span><i><em style="width:${s.n ? s.crit[k] / 5 * 100 : 0}%"></em></i><span>${s.n ? s.crit[k].toFixed(1) : "–"}</span></div>`).join("")}
+      </div>
+    </div>`;
+
+  $("#detReviews").innerHTML = `
+    <div class="section-t">리뷰 ${detailReviews.length}개</div>
+    ${detailReviews.length ? `<ul class="reviews">${detailReviews.map(r => {
+      const isMe = me && r.author === me;
+      const rph = photos.filter(t => t.review_id === r.id);
+      const ov = Number(r.overall);
+      return `<li class="rv"><div class="rv-top">
+        <span class="who">${esc(r.nickname)}${isMe ? " (나)" : ""}</span>
+        <span class="stars" aria-label="종합 ${ov.toFixed(1)}점">${starTxt(ov)}</span><span>${ov.toFixed(1)}</span>
+        ${r.revisit ? `<span class="tag">재방문 의사</span>` : ""}
+        ${r.visited ? `<span>${esc(r.visited.replace("-", "년 "))}월 방문</span>` : ""}
+      </div>
+      <div class="rv-sub">${CRIT.map(([k, l]) => `<span>${l} <b>${r[k]}</b></span>`).join("")}</div>
+      ${r.body ? `<p>${esc(r.body)}</p>` : ""}
+      ${rph.length ? `<div class="rv-photos">${rph.map(t => `<button type="button" data-ph="${esc(t.id)}" aria-label="사진 크게 보기"><img src="${esc(photoUrl(t.path, true))}" alt="" loading="lazy"></button>`).join("")}</div>` : ""}
+      </li>`; }).join("")}</ul>`
+      : `<p class="hint">아직 리뷰가 없어요. 첫 평가를 남겨 주세요.</p>`}
+    ${me && p.added_by === me && !s.n ? `<div class="actions"><button class="linkbtn" type="button" id="plDel">내가 등록한 이 가게 삭제</button></div>` : ""}`;
+}
+$("#detDlg").addEventListener("click", async e => {
+  const b = e.target.closest("[data-ph]"); if (b) { viewPhoto(b.dataset.ph); return; }
+  if (e.target.id === "plDel"){
+    const pid = openId;
+    const mine = placePhotos(pid).filter(t => t.author === me);
+    const { error } = await sb.from("places").delete().eq("id", pid);
+    if (!error){ await sb.storage.from("photos").remove(mine.flatMap(p => [p.path + ".jpg", p.path + "_t.jpg"])); $("#detDlg").close(); scheduleReload(); }
+  }
+});
+
+let rvPick = null;
+function renderForm(){
+  const p = places.find(x => x.id === openId);
+  const box = $("#detForm");
+  if (!p) return;
+  const mine = me ? detailReviews.find(r => r.author === me) : null;
+  box.innerHTML = `
+    <div class="section-t">${mine ? "내 리뷰 수정" : "가봤다면 평가를 남겨 주세요"}</div>
+    <form id="rvForm" novalidate>
+      <div class="crit-grid">
+        ${CRIT.map(([k, l]) => `
+        <div class="crit">
+          <div class="crit-h"><b id="lb-${k}">${l}</b><span id="cap-${k}">선택 안 함</span></div>
+          <div class="picker" role="radiogroup" aria-labelledby="lb-${k}">
+            ${[5,4,3,2,1].map(v => `<input type="radio" name="c-${k}" id="c-${k}-${v}" value="${v}"><label for="c-${k}-${v}" title="${v}점">★</label>`).join("")}
+          </div>
+        </div>`).join("")}
+      </div>
+      <div class="overall"><span class="flabel">종합</span><span class="num" id="ovNum">–</span><span class="hint">네 항목의 평균으로 계산돼요</span></div>
+      <label class="check" for="rv-revisit"><input type="checkbox" id="rv-revisit"> 다시 가고 싶어요</label>
+      <div class="row2">
+        <div class="field"><label for="rv-nick">닉네임 *</label><input id="rv-nick" maxlength="20" placeholder="예: 연수동 먹보"></div>
+        <div class="field"><label for="rv-date">방문한 달</label><input type="month" id="rv-date"></div>
+      </div>
+      <div class="field"><label for="rv-text">리뷰</label><textarea id="rv-text" maxlength="600" placeholder="무엇을 먹었고 어땠는지 알려 주세요"></textarea></div>
+      <div class="field"><span class="flabel">사진 (최대 ${MAX_PH}장)</span><div class="drop" id="rvPhotos"></div></div>
+      <div class="err" id="rvErr" role="alert"></div>
+      <div class="actions">${mine ? `<button class="btn ghost" type="button" id="rvDel">내 리뷰 삭제</button>` : ""}<button class="btn" type="submit" id="rvSubmit">${mine ? "수정하기" : "리뷰 등록"}</button></div>
+    </form>`;
+  const form = box.querySelector("#rvForm");
+  if (mine) CRIT.forEach(([k]) => { const el = form.querySelector(`#c-${k}-${mine[k]}`); if (el) el.checked = true; });
+  form.querySelector("#rv-revisit").checked = !!mine?.revisit;
+  form.querySelector("#rv-nick").value = mine?.nickname || store.get("csl-nick") || "";
+  form.querySelector("#rv-date").value = mine?.visited || "";
+  form.querySelector("#rv-text").value = mine?.body || "";
+  rvPick = photoPicker(form.querySelector("#rvPhotos"), form.querySelector("#rvErr"), mine ? photos.filter(t => t.review_id === mine.id) : []);
+
+  const upd = () => {
+    const vals = CRIT.map(([k, , caps]) => {
+      const v = Number(form.querySelector(`input[name="c-${k}"]:checked`)?.value || 0);
+      form.querySelector(`#cap-${k}`).textContent = v ? `${v}점 · ${caps[v]}` : "선택 안 함";
+      return v;
+    });
+    form.querySelector("#ovNum").textContent = vals.every(Boolean) ? (vals.reduce((a, b) => a + b) / 4).toFixed(1) : "–";
+  };
+  form.addEventListener("change", e => { if (e.target.type === "radio") upd(); });
+  upd();
+  form.addEventListener("submit", e => { e.preventDefault(); saveReview(p.id, form); });
+  form.querySelector("#rvDel")?.addEventListener("click", () => delReview(p.id, mine));
+}
+
+async function saveReview(pid, form){
+  const err = form.querySelector("#rvErr");
+  const row = { place_id: pid };
+  for (const [k, l] of CRIT){
+    const v = Number(form.querySelector(`input[name="c-${k}"]:checked`)?.value || 0);
+    if (!v){ err.textContent = `'${l}' 점수를 골라 주세요.`; return; }
+    row[k] = v;
+  }
+  const nick = form.querySelector("#rv-nick").value.trim();
+  if (!nick){ err.textContent = "닉네임을 입력해 주세요."; return; }
+  if (rvPick.busy){ err.textContent = "사진을 줄이는 중이에요. 잠시 후 다시 눌러 주세요."; return; }
+  const btn = form.querySelector("#rvSubmit"); btn.disabled = true; btn.textContent = "저장 중…";
+  try {
+    await ensureAuth();
+    store.set("csl-nick", nick);
+    Object.assign(row, {
+      author: me, nickname: nick,
+      revisit: form.querySelector("#rv-revisit").checked,
+      body: form.querySelector("#rv-text").value.trim(),
+      visited: form.querySelector("#rv-date").value || "",
+      updated_at: new Date().toISOString()
+    });
+    const { data, error } = await sb.from("reviews").upsert(row, { onConflict: "place_id,author" }).select("id").single();
+    if (error) throw error;
+    await removePhotos(rvPick.removed);
+    if (rvPick.items.length){ btn.textContent = "사진 올리는 중…"; await uploadPhotos(rvPick.items, pid, data.id); }
+    await loadAll(); await loadReviews(pid);
+    if (openId === pid){ renderDetail(); renderForm(); $("#rvErr").textContent = "저장했어요."; }
+  } catch (e) {
+    err.textContent = errMsg(e);
+    btn.disabled = false; btn.textContent = "다시 시도";
+  }
+}
+async function delReview(pid, mine){
+  if (!mine) return;
+  const ph = photos.filter(t => t.review_id === mine.id);
+  const { error } = await sb.from("reviews").delete().eq("id", mine.id);
+  if (error){ $("#rvErr").textContent = errMsg(error); return; }
+  await sb.storage.from("photos").remove(ph.flatMap(p => [p.path + ".jpg", p.path + "_t.jpg"]));
+  await loadAll(); await loadReviews(pid);
+  if (openId === pid){ renderDetail(); renderForm(); }
+}
+
+/* ---------- 시작 ---------- */
+(async () => {
+  const cfg = window.CSL_CONFIG || {};
+  if (!window.supabase || !cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY){
+    $("#state").innerHTML = `<b>데이터베이스 연결 설정이 필요해요</b>config.js 에 Supabase 주소와 anon 키를 넣어 주세요. 자세한 방법은 README를 참고하세요.`;
+    $("#addBtn").disabled = true; return;
+  }
+  sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+  const { data } = await sb.auth.getSession();
+  me = data.session?.user?.id || null;
+  try { await loadAll(); }
+  catch (e) {
+    $("#state").hidden = false;
+    $("#state").innerHTML = `<b>목록을 불러오지 못했어요</b>supabase/schema.sql 을 실행했는지 확인해 주세요. (${esc(e?.message || "")})`;
+    return;
+  }
+  sb.channel("csl")
+    .on("postgres_changes", { event: "*", schema: "public", table: "places" }, scheduleReload)
+    .on("postgres_changes", { event: "*", schema: "public", table: "reviews" }, scheduleReload)
+    .on("postgres_changes", { event: "*", schema: "public", table: "photos" }, scheduleReload)
+    .subscribe();
+})();
+</script>
+</body>
+</html>
