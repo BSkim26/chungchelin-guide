@@ -494,8 +494,11 @@ $("#list").addEventListener("click", e => { const li = e.target.closest(".entry"
 $("#list").addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("entry")) { e.preventDefault(); openDetail(e.target.dataset.id); } });
 
 /* ---------- 대화상자 ---------- */
+// 입력 창(등록·상세)은 × 또는 취소 버튼으로만 닫힘. 사진 보기만 바깥을 눌러 닫을 수 있음.
 document.querySelectorAll("dialog").forEach(d => {
-  d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-close]")) d.close(); });
+  d.addEventListener("click", e => {
+    if (e.target.closest("[data-close]") || (d.id === "imgDlg" && e.target === d)) d.close();
+  });
 });
 $("#detDlg").addEventListener("close", () => { openId = null; });
 
