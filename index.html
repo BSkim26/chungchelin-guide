@@ -91,7 +91,7 @@ select.sort{border:1px solid var(--line);background:var(--surface);padding:6px 1
 .dist.pending{color:var(--muted);background:transparent;border:1px dashed var(--line)}
 .dist.bib{color:var(--leaf);background:var(--leaf-soft)}
 .blos{display:inline-flex;gap:2px}
-.blos svg{width:15px;height:15px;fill:currentColor}
+.blos svg{width:17px;height:17px;fill:currentColor}
 
 .state{padding:60px 0;text-align:center;color:var(--muted)}
 .state b{display:block;font-family:var(--serif);font-size:22px;color:var(--ink);margin-bottom:6px}
@@ -198,7 +198,7 @@ footer{margin-top:40px;padding-top:18px;border-top:2px solid var(--ink);font-siz
 <body>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="blossom" viewBox="0 0 24 24"><path d="M12 2.5c1.6 0 2.7 1.5 2.4 3.3 1.5-1 3.4-.6 4.1.9.8 1.5-.1 3.2-1.8 3.8 1.7.6 2.6 2.3 1.8 3.8-.7 1.5-2.6 1.9-4.1.9.3 1.8-.8 3.3-2.4 3.3s-2.7-1.5-2.4-3.3c-1.5 1-3.4.6-4.1-.9-.8-1.5.1-3.2 1.8-3.8-1.7-.6-2.6-2.3-1.8-3.8.7-1.5 2.6-1.9 4.1-.9C9.3 4 10.4 2.5 12 2.5Zm0 7a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Z"/></symbol>
+  <symbol id="blossom" viewBox="0 0 24 24"><path d="M12 7.6c-1.3-1-3-1.4-4.6-.9C4.8 7.5 3.5 10.1 4 13.1c.6 3.9 3.3 7.9 5.6 7.9.9 0 1.4-.5 2.4-.5s1.5.5 2.4.5c2.3 0 5-4 5.6-7.9.5-3-.8-5.6-3.4-6.4-1.6-.5-3.3-.1-4.6.9Z"/><path d="M11.3 7.5c-.1-2.1.4-3.8 1.7-5.2l1 .7c-1.1 1.2-1.5 2.6-1.4 4.5Z"/><path style="fill:var(--leaf)" d="M13.6 5.6c.5-2.2 2.4-3.5 4.8-3.4-.4 2.2-2.4 3.6-4.8 3.4Z"/></symbol>
 </svg>
 
 <div class="wrap">
@@ -206,7 +206,7 @@ footer{margin-top:40px;padding-top:18px;border-top:2px solid var(--ink);font-siz
     <div>
       <div class="eyebrow">Chungju · 2026 Edition</div>
       <h1>충<span class="r">슐랭</span> 가이드</h1>
-      <p class="lede">충주 사람들이 직접 올리고, 가본 사람이 맛·서비스·분위기·가성비를 평가하는 맛집 안내서. 리뷰가 쌓이면 사과꽃이 붙습니다.</p>
+      <p class="lede">충주 사람들이 직접 올리고, 가본 사람이 맛·서비스·분위기·가성비를 평가하는 맛집 안내서. 리뷰가 쌓이면 사과가 붙습니다.</p>
     </div>
     <button class="btn" id="addBtn" type="button">+ 맛집 등록</button>
   </header>
@@ -448,7 +448,7 @@ function stats(pid){
 }
 function distBadge(s){
   if (s.pending) return `<span class="dist pending">심사 중</span>`;
-  if (s.level) return `<span class="dist" title="사과꽃 ${s.level}개">${blossom(s.level)}</span>`;
+  if (s.level) return `<span class="dist" title="사과 ${s.level}개">${blossom(s.level)}</span>`;
   return `<span class="dist bib">충주 추천</span>`;
 }
 const placePhotos = pid => photos.filter(t => t.placeId === pid);
