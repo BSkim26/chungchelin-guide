@@ -53,9 +53,14 @@ h1 .r{color:var(--red)}
 
 /* legend */
 .legend{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}
-.legend div{padding:14px 16px 14px 0;display:flex;flex-direction:column;gap:2px}
-.legend div+div{padding-left:16px;border-left:1px solid var(--line)}
+.legend button{all:unset;box-sizing:border-box;padding:14px 16px;display:flex;flex-direction:column;gap:4px;cursor:pointer;border-left:1px solid var(--line);transition:background .15s}
+.legend button:first-child{border-left:0}
+.legend button:hover{background:var(--red-soft)}
+.legend button:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+.legend button[aria-pressed="true"]{background:var(--red-soft);box-shadow:inset 0 -3px 0 var(--red)}
 .legend small{color:var(--muted);font-size:12.5px}
+.legend .n{font-family:var(--mono);color:var(--ink)}
+.count .clear{border:0;background:none;color:var(--red);text-decoration:underline;cursor:pointer;font-size:13px;padding:0;margin-left:8px}
 
 /* toolbar */
 .tools{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;padding-block:22px 10px}
@@ -88,7 +93,6 @@ select.sort{border:1px solid var(--line);background:var(--surface);padding:6px 1
 .num small{font-size:14px;color:var(--muted)}
 .rc{font-size:12.5px;color:var(--muted)}
 .dist{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--red);padding:3px 10px;border-radius:99px;background:var(--red-soft);width:max-content}
-.dist.pending{color:var(--muted);background:transparent;border:1px dashed var(--line)}
 .dist.bib{color:var(--leaf);background:var(--leaf-soft)}
 .blos{display:inline-flex;gap:2px}
 .blos svg{width:17px;height:17px;fill:currentColor}
@@ -181,8 +185,8 @@ footer{margin-top:40px;padding-top:18px;border-top:2px solid var(--ink);font-siz
 @media (max-width:720px){
   .mast{grid-template-columns:1fr}
   .legend{grid-template-columns:1fr 1fr}
-  .legend div:nth-child(3){padding-left:0;border-left:0}
-  .legend div:nth-child(n+3){border-top:1px solid var(--line)}
+  .legend button:nth-child(3){border-left:0}
+  .legend button:nth-child(n+3){border-top:1px solid var(--line)}
   .entry{grid-template-columns:88px 1fr;gap:6px 14px}
   .cover{width:88px}
   .entry h2{font-size:21px}
@@ -206,17 +210,12 @@ footer{margin-top:40px;padding-top:18px;border-top:2px solid var(--ink);font-siz
     <div>
       <div class="eyebrow">Chungju · 2026 Edition</div>
       <h1>충<span class="r">슐랭</span> 가이드</h1>
-      <p class="lede">충주 사람들이 직접 올리고, 가본 사람이 맛·서비스·분위기·가성비를 평가하는 맛집 안내서. 리뷰가 쌓이면 사과가 붙습니다.</p>
+      <p class="lede">충주 사람들이 직접 올리고, 가본 사람이 맛·서비스·분위기·가성비를 평가하는 맛집 안내서. 평점에 따라 사과가 붙고, 사과를 누르면 그 등급 맛집만 모아 볼 수 있어요.</p>
     </div>
     <button class="btn" id="addBtn" type="button">+ 맛집 등록</button>
   </header>
 
-  <section class="legend" aria-label="평가 기준">
-    <div><span class="dist"><span class="blos"><svg><use href="#blossom"/></svg><svg><use href="#blossom"/></svg><svg><use href="#blossom"/></svg></span></span><small>종합 4.5 이상 · 일부러 충주에 올 가치</small></div>
-    <div><span class="dist"><span class="blos"><svg><use href="#blossom"/></svg><svg><use href="#blossom"/></svg></span></span><small>종합 4.0 이상 · 먼 길 돌아갈 가치</small></div>
-    <div><span class="dist"><span class="blos"><svg><use href="#blossom"/></svg></span></span><small>종합 3.5 이상 · 지나다 들를 가치</small></div>
-    <div><span class="dist pending">심사 중</span><small>리뷰 3개 미만 · 평가가 더 필요해요</small></div>
-  </section>
+  <section class="legend" id="legend" aria-label="등급별로 보기"></section>
 
   <div class="tools">
     <div class="search"><input id="q" type="search" placeholder="가게 이름, 메뉴, 동네로 찾기" aria-label="검색"></div>
@@ -442,35 +441,65 @@ function stats(pid){
   const avg = mean(r => r.overall);
   const crit = Object.fromEntries(CRIT.map(([k]) => [k, mean(r => r[k])]));
   const revisit = n ? rs.filter(r => r.revisit).length / n : 0;
-  const pending = n < 3;
-  const level = pending ? 0 : avg >= 4.5 ? 3 : avg >= 4.0 ? 2 : avg >= 3.5 ? 1 : 0;
-  return { rs, n, avg, crit, revisit, level, pending };
+  const level = !n ? -1 : avg >= 4.5 ? 3 : avg >= 4.0 ? 2 : avg >= 3.5 ? 1 : 0;   // -1 = 아직 리뷰 없음
+  return { rs, n, avg, crit, revisit, level };
 }
 function distBadge(s){
-  if (s.pending) return `<span class="dist pending">심사 중</span>`;
+  if (s.level < 0) return "";
   if (s.level) return `<span class="dist" title="사과 ${s.level}개">${blossom(s.level)}</span>`;
   return `<span class="dist bib">충주 추천</span>`;
 }
 const placePhotos = pid => photos.filter(t => t.placeId === pid);
 
+/* ---------- 등급별 보기 ---------- */
+const LEVELS = [
+  [3, "종합 4.5 이상 · 일부러 충주에 올 가치"],
+  [2, "종합 4.0 이상 · 먼 길 돌아갈 가치"],
+  [1, "종합 3.5 이상 · 지나다 들를 가치"],
+  [0, "종합 3.5 미만 · 동네 사람들의 추천"]
+];
+const levelName = lv => lv > 0 ? `사과 ${lv}개` : "충주 추천";
+let levelFilter = null;
+function renderLegend(){
+  const counts = {};
+  places.forEach(p => { const lv = stats(p.id).level; counts[lv] = (counts[lv] || 0) + 1; });
+  $("#legend").innerHTML = LEVELS.map(([lv, txt]) => `
+    <button type="button" data-lv="${lv}" aria-pressed="${levelFilter === lv}" title="${levelName(lv)} 맛집만 보기">
+      ${lv > 0 ? `<span class="dist">${blossom(lv)}</span>` : `<span class="dist bib">충주 추천</span>`}
+      <small>${txt}</small>
+      <small><span class="n">${counts[lv] || 0}</span>곳</small>
+    </button>`).join("");
+}
+$("#legend").addEventListener("click", e => {
+  const b = e.target.closest("[data-lv]"); if (!b) return;
+  const lv = Number(b.dataset.lv);
+  levelFilter = levelFilter === lv ? null : lv;
+  render();
+  $("#list").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+});
+$("#count").addEventListener("click", e => { if (e.target.closest(".clear")){ levelFilter = null; render(); } });
+
 /* ---------- 목록 ---------- */
 function render(){
   if (!ready) return;
+  renderLegend();
   const q = $("#q").value.trim().toLowerCase();
   const sort = $("#sort").value;
   let rows = places.map(p => ({ p, s: stats(p.id), ph: placePhotos(p.id) }))
     .filter(({p}) => filter === "전체" || p.category === filter)
+    .filter(({s}) => levelFilter === null || s.level === levelFilter)
     .filter(({p}) => !q || [p.name, p.signature, p.area, p.description, p.category].join(" ").toLowerCase().includes(q));
   const key = r => sort === "score" ? r.s.avg : r.s.crit[sort];
   rows.sort((a, b) =>
     sort === "reviews" ? b.s.n - a.s.n || b.s.avg - a.s.avg :
     sort === "new" ? b.p.createdAt - a.p.createdAt :
-    (b.s.n ? 1 : 0) - (a.s.n ? 1 : 0) || (b.s.pending ? 0 : 1) - (a.s.pending ? 0 : 1) || key(b) - key(a) || b.s.n - a.s.n);
+    (b.s.n ? 1 : 0) - (a.s.n ? 1 : 0) || key(b) - key(a) || b.s.n - a.s.n);
 
-  $("#count").textContent = places.length ? `${rows.length}곳 / 전체 ${places.length}곳` : "";
+  $("#count").innerHTML = !places.length ? "" : levelFilter === null ? `${rows.length}곳 / 전체 ${places.length}곳` :
+    `<b>${levelName(levelFilter)}</b> 맛집 ${rows.length}곳<button type="button" class="clear">전체 보기</button>`;
   const st = $("#state");
   if (!places.length){ st.hidden = false; st.innerHTML = `<b>아직 등록된 맛집이 없어요</b>첫 번째 충주 맛집을 등록해 주세요.`; }
-  else if (!rows.length){ st.hidden = false; st.innerHTML = `<b>조건에 맞는 곳이 없어요</b>검색어나 분류를 바꿔 보세요.`; }
+  else if (!rows.length){ st.hidden = false; st.innerHTML = levelFilter !== null ? `<b>아직 ${levelName(levelFilter)} 맛집이 없어요</b>리뷰가 쌓이면 여기에 나타나요.` : `<b>조건에 맞는 곳이 없어요</b>검색어나 분류를 바꿔 보세요.`; }
   else st.hidden = true;
 
   $("#list").innerHTML = rows.map(({p, s, ph}) => `
@@ -560,7 +589,7 @@ function renderDetail(){
       <div class="score" style="align-items:flex-start;text-align:left">
         <div class="num" style="font-size:44px">${s.n ? s.avg.toFixed(1) : "–"}<small> / 5</small></div>
         ${distBadge(s)}
-        <div class="rc">리뷰 ${s.n}개${s.pending ? ` · ${3 - s.n}개 더 모이면 등급 결정` : ""}</div>
+        <div class="rc">리뷰 ${s.n}개</div>
         ${s.n ? `<div class="revisit">${Math.round(s.revisit * 100)}%가 다시 가고 싶대요</div>` : ""}
       </div>
       <div class="bars" aria-label="항목별 평균">
@@ -683,6 +712,7 @@ async function delReview(pid, mine, btn){
 
 /* ---------- 시작 ---------- */
 (async () => {
+  renderLegend();
   if (!API){
     $("#state").innerHTML = `<b>스프레드시트 연결 설정이 필요해요</b>config.js 에 Apps Script 웹 앱 주소를 넣어 주세요. 자세한 방법은 README를 참고하세요.`;
     $("#addBtn").disabled = true; return;
