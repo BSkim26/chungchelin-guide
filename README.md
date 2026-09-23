@@ -13,59 +13,59 @@
 
 ## 구성
 
-- `index.html` — 홈페이지 전체 (빌드 과정 없음, GitHub Pages로 바로 배포)
-- `config.js` — Supabase 연결 정보
-- `supabase/schema.sql` — 테이블, 접근 규칙, 사진 저장소, 실시간 설정
-- `supabase/seed.sql` — (선택) 처음 목록에 보일 충주 가게 4곳
-
-데이터베이스는 [Supabase](https://supabase.com)(무료 요금제로 충분)를 씁니다.
-방문자는 가입하지 않아도 되고, 처음 등록하거나 리뷰를 쓸 때 브라우저별 **익명 계정**이 자동으로 만들어집니다.
-그래서 같은 브라우저에서는 자기 리뷰를 고치거나 지울 수 있고, 남의 글은 고칠 수 없습니다.
-
-### 데이터 구조
-
 ```
-places   맛집       id, name, category, area, address, signature, price(1~4), description, added_by
-reviews  리뷰       place_id, author, nickname, taste, service, mood, value (각 1~5),
-                    overall(네 항목 평균, 자동 계산), revisit, body, visited(YYYY-MM)
-                    → 한 사람당 가게 하나에 리뷰 하나 (place_id + author 유일)
-photos   사진       place_id, review_id(없으면 가게 등록 사진), author, path
-place_stats (뷰)    가게별 리뷰 수, 종합·항목별 평균, 재방문 비율
-Storage  photos 버킷  <작성자id>/<사진id>.jpg (원본), _t.jpg (썸네일)
+index.html            홈페이지 (GitHub Pages)
+config.js             Apps Script 웹 앱 주소
+apps-script/Code.gs   스프레드시트 백엔드 — 스프레드시트의 Apps Script 에 붙여넣음
 ```
 
-접근 규칙: 누구나 읽기 · 로그인(익명 포함)한 사람만 쓰기 · 자기 글과 사진만 수정·삭제 · 가게는 리뷰가 없을 때만 등록한 사람이 삭제.
+데이터는 **Google 스프레드시트**에, 사진은 **Google 드라이브**에 저장됩니다.
+
+```
+홈페이지 (GitHub Pages)  ──fetch──▶  Apps Script 웹 앱  ──▶  스프레드시트 (places / reviews / photos 탭)
+                                                         └─▶  드라이브 '충슐랭 사진' 폴더
+```
+
+### 시트 구조 (setup 실행 시 자동 생성)
+
+| 탭 | 열 |
+|---|---|
+| `places` 맛집 | id, name, category, area, address, signature, price(1~4), description, owner, createdAt |
+| `reviews` 리뷰 | id, placeId, owner, nickname, taste, service, mood, value(각 1~5), overall(네 항목 평균), revisit(Y/N), body, visited(YYYY-MM), createdAt, updatedAt |
+| `photos` 사진 | id, placeId, reviewId(비어 있으면 가게 등록 사진), owner, fileId(드라이브 파일), createdAt |
+
+- 방문자는 가입하지 않습니다. 브라우저마다 비밀 토큰이 만들어지고, 시트에는 그 **해시값(owner)** 만 저장됩니다.
+  같은 브라우저에서만 자기 가게·리뷰·사진을 고치거나 지울 수 있습니다.
+- 한 사람당 가게 하나에 리뷰 하나, 사진은 최대 3장, 같은 이름의 가게는 중복 등록되지 않습니다. 모든 검사는 서버(Apps Script)에서 합니다.
+- 시트 주인은 시트에서 직접 행을 고치거나 지워 관리할 수 있습니다 (장난 글 삭제 등). **첫 줄(제목)과 열 순서는 바꾸지 마세요.**
 
 ## 설치 방법
 
-### 1. Supabase 프로젝트 만들기
-1. https://supabase.com 에 가입하고 **New project**를 만듭니다 (Region은 Seoul 추천).
-2. 왼쪽 메뉴 **SQL Editor**에서 `supabase/schema.sql` 내용을 통째로 붙여넣고 **Run**을 누릅니다.
-3. (선택) 이어서 `supabase/seed.sql`도 실행하면 가게 4곳이 미리 들어갑니다.
+### 1. 스프레드시트에 스크립트 넣기
+1. 스프레드시트를 열고 **확장 프로그램 → Apps Script**를 누릅니다.
+2. 기본으로 있는 `Code.gs` 내용을 지우고 `apps-script/Code.gs` 내용을 통째로 붙여넣은 뒤 저장(💾)합니다.
+3. 위쪽 함수 선택 칸에서 **`setup`** 을 고르고 **실행**을 누릅니다.
+   권한 요청이 나오면 계정 선택 → "고급" → "(안전하지 않음)으로 이동" → **허용**.
+   → 시트에 `places`, `reviews`, `photos` 탭이, 드라이브에 `충슐랭 사진` 폴더가 생깁니다.
+4. (선택) 같은 방법으로 **`seed`** 를 실행하면 충주 가게 4곳이 미리 들어갑니다.
 
-### 2. 익명 로그인 켜기
-**Authentication → Sign In / Providers**에서 **Allow anonymous sign-ins**를 켜고 저장합니다.
-이걸 켜지 않으면 목록은 보이지만 등록과 리뷰는 할 수 없습니다.
+### 2. 웹 앱으로 배포
+1. 오른쪽 위 **배포 → 새 배포** → 톱니바퀴에서 **웹 앱** 선택.
+2. **실행 계정: 나**, **액세스 권한: 모든 사용자**로 두고 **배포**.
+3. 나오는 **웹 앱 URL**(`https://script.google.com/macros/s/…/exec`)을 복사합니다.
 
-> 장난 글이 걱정되면 같은 화면 아래의 **CAPTCHA**(Turnstile/hCaptcha) 보호와 **Rate Limits**를 켜 두는 것을 권장합니다.
+> 스크립트를 고친 뒤에는 **배포 → 배포 관리 → 수정(연필) → 버전: 새 버전 → 배포**를 해야 반영됩니다. (URL은 그대로)
 
-### 3. 연결 정보 넣기
-**Project Settings → API**(또는 **Data API / API Keys**)에서 아래 두 값을 복사해 `config.js`에 넣습니다.
-
-- Project URL → `SUPABASE_URL`
-- `anon` `public` 키 (또는 `sb_publishable_...` 키) → `SUPABASE_ANON_KEY`
-
-anon 키는 공개돼도 괜찮은 키입니다. **`service_role` / secret 키는 절대 넣지 마세요.**
+### 3. 홈페이지에 연결
+`config.js`의 `API_URL`에 웹 앱 URL을 넣고 커밋·푸시합니다.
 
 ### 4. GitHub Pages로 배포
-1. 저장소 **Settings → Pages**로 갑니다.
-2. Source를 **Deploy from a branch**로, Branch를 `main` / `/ (root)`로 두고 저장합니다.
-3. 1~2분 뒤 `https://<계정>.github.io/<저장소>/` 주소로 접속할 수 있습니다.
+저장소 **Settings → Pages** → Source **Deploy from a branch**, Branch `main` / `/ (root)` → 저장.
+1~2분 뒤 `https://<계정>.github.io/<저장소>/` 로 접속할 수 있습니다.
 
-## 로컬에서 보기
+## 알아둘 점
 
-`index.html`을 파일로 바로 열면 브라우저 보안 때문에 일부 기능이 막힐 수 있습니다. 간단한 서버로 여세요.
-
-```bash
-npx serve .        # 또는  python -m http.server 8000
-```
+- 무료 Google 계정 기준으로 하루 수천 번 요청까지는 문제없습니다. 동네 맛집 가이드 규모에는 충분합니다.
+- 다른 사람이 올린 내용은 30초마다, 또는 탭으로 돌아올 때 자동으로 반영됩니다.
+- 회사·학교(Workspace) 계정은 관리자가 "링크가 있는 모든 사용자" 공유를 막아 두면 사진이 보이지 않을 수 있습니다. 개인 Gmail 계정의 시트를 권장합니다.
+- 누구나 익명으로 쓸 수 있으니 주기적으로 시트를 확인해 부적절한 글을 지워 주세요.

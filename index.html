@@ -281,7 +281,6 @@ footer{margin-top:40px;padding-top:18px;border-top:2px solid var(--ink);font-siz
   <div id="imgBox"></div>
 </dialog>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
 <script>
 const CATS = ["한식","해장국·탕","면·냉면","고기·구이","중식","일식·회","분식","카페·디저트","기타"];
@@ -297,13 +296,14 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const blossom = n => `<span class="blos">${'<svg aria-hidden="true"><use href="#blossom"/></svg>'.repeat(n)}</span>`;
 const starTxt = v => { const n = Math.round(v); return "★".repeat(n) + "☆".repeat(5 - n); };
-const won = n => "₩".repeat(n || 2);
+const won = n => "₩".repeat(Number(n) || 2);
 const PLATE = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v8a2 2 0 0 1-1.5 1.94V22h-2V11.94A2 2 0 0 1 2 10V2h1.5v6h1V2h1v6h1V2H7Zm10 0c2 0 3.5 2.5 3.5 6 0 2.4-1 4-2.5 4.6V22h-2V2h1Z"/></svg>`;
 const store = { get(k){ try { return localStorage.getItem(k); } catch { return null; } }, set(k, v){ try { localStorage.setItem(k, v); } catch {} } };
 
-let sb = null, me = null;           // me = 로그인한(익명 포함) 사용자 id
-let places = [], photos = [], detailReviews = [];
-let filter = "전체", openId = null;
+const API = (window.CSL_CONFIG || {}).API_URL || "";
+let token = "", me = "";              // token = 이 브라우저의 비밀 토큰, me = 시트에 저장되는 해시
+let places = [], reviews = [], photos = [];
+let filter = "전체", openId = null, ready = false;
 
 $("#f-cat").innerHTML = CATS.map(c => `<option>${c}</option>`).join("");
 $("#areas").innerHTML = AREAS.map(a => `<option value="${a}">`).join("");
@@ -320,24 +320,45 @@ $("#q").addEventListener("input", render);
 $("#sort").addEventListener("change", () => { store.set("csl-sort", $("#sort").value); render(); });
 renderChips();
 
-/* ---------- 인증: 가입 없이 익명 로그인 (처음 쓸 때만 만듦) ---------- */
-async function ensureAuth(){
-  if (me) return me;
-  const { data, error } = await sb.auth.signInAnonymously();
-  if (error) throw { code: "auth", message: error.message };
-  me = data.user.id;
-  return me;
-}
-function errMsg(e){
-  const m = String(e?.message || "");
-  if (e?.code === "auth") return "참여 기능이 아직 꺼져 있어요. 관리자가 Supabase에서 익명 로그인(Anonymous sign-ins)을 켜야 해요.";
-  if (e?.code === "23505" || /duplicate/i.test(m)) return "이미 등록된 가게예요. 목록에서 찾아 리뷰를 남겨 주세요.";
-  if (/최대 3장/.test(m)) return "사진은 최대 3장까지 올릴 수 있어요.";
-  if (e?.code === "42501" || /row-level security/i.test(m)) return "권한이 없어요. 페이지를 새로고침한 뒤 다시 시도해 주세요.";
-  return "저장하지 못했어요. 잠시 후 다시 시도해 주세요." + (m ? ` (${m})` : "");
+/* ---------- 나 = 브라우저 토큰 ---------- */
+async function initIdentity(){
+  token = store.get("csl-token");
+  if (!token){
+    const b = crypto.getRandomValues(new Uint8Array(24));
+    token = Array.from(b, x => x.toString(16).padStart(2, "0")).join("");
+    store.set("csl-token", token);
+  }
+  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  me = Array.from(new Uint8Array(d), x => x.toString(16).padStart(2, "0")).join("");
 }
 
-/* ---------- 사진: 브라우저에서 줄인 뒤 Storage에 업로드 ---------- */
+/* ---------- API (Apps Script 웹 앱) ---------- */
+async function loadAll(){
+  const res = await fetch(API + (API.includes("?") ? "&" : "?") + "t=" + Date.now());
+  const j = await res.json();
+  if (!j.ok) throw new Error(j.error);
+  places = j.places.map(p => ({ ...p, price: Number(p.price) || 2, createdAt: Number(p.createdAt) || 0 }));
+  reviews = j.reviews.map(r => ({ ...r,
+    taste: +r.taste, service: +r.service, mood: +r.mood, value: +r.value, overall: +r.overall,
+    revisit: r.revisit === "Y" || r.revisit === true, visited: String(r.visited || "").slice(0, 7),
+    createdAt: Number(r.createdAt) || 0 }))
+    .filter(r => r.overall >= 1 && r.overall <= 5);
+  photos = j.photos.map(p => ({ ...p, reviewId: String(p.reviewId || ""), createdAt: Number(p.createdAt) || 0 }))
+    .sort((a, b) => a.createdAt - b.createdAt);
+  ready = true;
+  render();
+  if (openId) renderDetail();
+}
+async function call(action, body){
+  const res = await fetch(API, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action, token, ...body }) });
+  const j = await res.json();
+  if (!j.ok) throw new Error(j.error || "요청을 처리하지 못했어요.");
+  return j.result;
+}
+const errMsg = e => e?.message && !/fetch|network|JSON/i.test(e.message) ? e.message : "서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.";
+
+/* ---------- 사진: 브라우저에서 줄인 뒤 드라이브에 업로드 ---------- */
 async function loadImage(file){
   if (window.createImageBitmap){ try { return await createImageBitmap(file, { imageOrientation: "from-image" }); } catch {} }
   return await new Promise((res, rej) => {
@@ -347,24 +368,29 @@ async function loadImage(file){
     im.src = url;
   });
 }
-function toJpeg(img, maxSide, q){
-  const k = Math.min(1, maxSide / Math.max(img.width, img.height));
-  const c = document.createElement("canvas");
-  c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-  const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
-  g.drawImage(img, 0, 0, c.width, c.height);
-  return new Promise(res => c.toBlob(res, "image/jpeg", q));
+function encode(img, maxSide, limit){
+  let side = maxSide, q = 0.82, out = "";
+  for (let i = 0; i < 8; i++){
+    const k = Math.min(1, side / Math.max(img.width, img.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(img, 0, 0, c.width, c.height);
+    out = c.toDataURL("image/jpeg", q);
+    if (out.length <= limit) return out;
+    if (q > 0.6) q -= 0.1; else side = Math.round(side * 0.8);
+  }
+  return out;
 }
 async function prepPhoto(file){
   if (!file.type.startsWith("image/")) throw new Error("type");
   const img = await loadImage(file);
-  const full = await toJpeg(img, 1600, 0.82), thumb = await toJpeg(img, 400, 0.75);
-  return { full, thumb, preview: URL.createObjectURL(thumb) };
+  return { data: encode(img, 1600, 1400000), preview: encode(img, 300, 60000) };
 }
 const photoErr = e => e?.message === "type" ? "사진 파일만 올릴 수 있어요." :
   e?.message === "decode" ? "이 사진 형식은 열 수 없어요. JPG나 PNG로 올려 주세요 (아이폰 HEIC는 '가장 호환성 높은 형식'으로 저장)." :
   "사진을 줄이지 못했어요. 다른 사진으로 시도해 주세요.";
-const photoUrl = (path, thumb) => sb.storage.from("photos").getPublicUrl(path + (thumb ? "_t.jpg" : ".jpg")).data.publicUrl;
+const photoUrl = (p, size) => `https://drive.google.com/thumbnail?id=${encodeURIComponent(p.fileId)}&sz=w${size}`;
 
 function photoPicker(el, errEl, keep = []){
   const st = { keep: [...keep], removed: [], items: [], busy: 0 };
@@ -372,7 +398,7 @@ function photoPicker(el, errEl, keep = []){
   const draw = () => {
     const total = st.keep.length + st.items.length;
     el.innerHTML =
-      st.keep.map((t, i) => `<div class="ph"><img src="${esc(photoUrl(t.path, true))}" alt="올린 사진"><button type="button" data-k="${i}" aria-label="사진 빼기">×</button></div>`).join("") +
+      st.keep.map((t, i) => `<div class="ph"><img src="${esc(photoUrl(t, 300))}" alt="올린 사진"><button type="button" data-k="${i}" aria-label="사진 빼기">×</button></div>`).join("") +
       st.items.map((t, i) => `<div class="ph"><img src="${esc(t.preview)}" alt="새 사진"><button type="button" data-n="${i}" aria-label="사진 빼기">×</button></div>`).join("") +
       (st.busy ? `<div class="addph">줄이는 중…</div>` : "") +
       (total + st.busy < MAX_PH ? `<label class="addph" for="${inputId}">+ 사진<br>${total}/${MAX_PH}<input type="file" id="${inputId}" accept="image/*" multiple></label>` : "");
@@ -395,75 +421,50 @@ function photoPicker(el, errEl, keep = []){
   draw();
   return st;
 }
-async function uploadPhotos(items, placeId, reviewId){
-  for (const it of items){
-    const path = `${me}/${crypto.randomUUID()}`;
-    const bucket = sb.storage.from("photos");
-    let r = await bucket.upload(path + ".jpg", it.full, { contentType: "image/jpeg" });
-    if (r.error) throw r.error;
-    r = await bucket.upload(path + "_t.jpg", it.thumb, { contentType: "image/jpeg" });
-    if (r.error) throw r.error;
-    const { error } = await sb.from("photos").insert({ place_id: placeId, review_id: reviewId || null, path });
-    if (error){ await bucket.remove([path + ".jpg", path + "_t.jpg"]); throw error; }
+async function uploadPhotos(items, placeId, reviewId, btn){
+  for (let i = 0; i < items.length; i++){
+    if (btn) btn.textContent = `사진 올리는 중… ${i + 1}/${items.length}`;
+    await call("addPhoto", { placeId, reviewId: reviewId || "", data: items[i].data });
   }
 }
-async function removePhotos(list){
-  if (!list.length) return;
-  await sb.from("photos").delete().in("id", list.map(p => p.id));
-  await sb.storage.from("photos").remove(list.flatMap(p => [p.path + ".jpg", p.path + "_t.jpg"]));
-}
+async function removePhotos(list){ for (const p of list) await call("deletePhoto", { id: p.id }); }
 function viewPhoto(id){
   const p = photos.find(x => x.id === id); if (!p) return;
-  $("#imgBox").innerHTML = `<img src="${esc(photoUrl(p.path, false))}" alt="사진">`;
+  $("#imgBox").innerHTML = `<img src="${esc(photoUrl(p, 1600))}" alt="사진">`;
   if (!$("#imgDlg").open) $("#imgDlg").showModal();
 }
 
 /* ---------- 점수 ---------- */
-function stats(p){
-  const n = p.review_count || 0, avg = p.overall_avg || 0;
-  const crit = { taste: p.taste_avg || 0, service: p.service_avg || 0, mood: p.mood_avg || 0, value: p.value_avg || 0 };
+function stats(pid){
+  const rs = reviews.filter(r => r.placeId === pid);
+  const n = rs.length;
+  const mean = f => n ? rs.reduce((a, r) => a + f(r), 0) / n : 0;
+  const avg = mean(r => r.overall);
+  const crit = Object.fromEntries(CRIT.map(([k]) => [k, mean(r => r[k])]));
+  const revisit = n ? rs.filter(r => r.revisit).length / n : 0;
   const pending = n < 3;
   const level = pending ? 0 : avg >= 4.5 ? 3 : avg >= 4.0 ? 2 : avg >= 3.5 ? 1 : 0;
-  return { n, avg, crit, revisit: p.revisit_rate || 0, level, pending };
+  return { rs, n, avg, crit, revisit, level, pending };
 }
 function distBadge(s){
   if (s.pending) return `<span class="dist pending">심사 중</span>`;
   if (s.level) return `<span class="dist" title="사과꽃 ${s.level}개">${blossom(s.level)}</span>`;
   return `<span class="dist bib">충주 추천</span>`;
 }
-const placePhotos = pid => photos.filter(t => t.place_id === pid);
-
-/* ---------- 데이터 불러오기 ---------- */
-async function loadAll(){
-  const [a, b] = await Promise.all([
-    sb.from("place_stats").select("*"),
-    sb.from("photos").select("id,place_id,review_id,author,path,created_at").order("created_at")
-  ]);
-  if (a.error) throw a.error;
-  places = a.data; photos = b.data || [];
-  render();
-}
-async function loadReviews(pid){
-  const { data, error } = await sb.from("reviews").select("*").eq("place_id", pid).order("created_at", { ascending: false });
-  if (!error && openId === pid) detailReviews = data;
-}
-let reloadT = null;
-function scheduleReload(){
-  clearTimeout(reloadT);
-  reloadT = setTimeout(async () => { await loadAll().catch(() => {}); if (openId){ await loadReviews(openId); renderDetail(); } }, 300);
-}
+const placePhotos = pid => photos.filter(t => t.placeId === pid);
 
 /* ---------- 목록 ---------- */
 function render(){
+  if (!ready) return;
   const q = $("#q").value.trim().toLowerCase();
   const sort = $("#sort").value;
-  let rows = places.map(p => ({ p, s: stats(p), ph: placePhotos(p.id) }))
+  let rows = places.map(p => ({ p, s: stats(p.id), ph: placePhotos(p.id) }))
     .filter(({p}) => filter === "전체" || p.category === filter)
     .filter(({p}) => !q || [p.name, p.signature, p.area, p.description, p.category].join(" ").toLowerCase().includes(q));
   const key = r => sort === "score" ? r.s.avg : r.s.crit[sort];
   rows.sort((a, b) =>
     sort === "reviews" ? b.s.n - a.s.n || b.s.avg - a.s.avg :
-    sort === "new" ? String(b.p.created_at).localeCompare(String(a.p.created_at)) :
+    sort === "new" ? b.p.createdAt - a.p.createdAt :
     (b.s.n ? 1 : 0) - (a.s.n ? 1 : 0) || (b.s.pending ? 0 : 1) - (a.s.pending ? 0 : 1) || key(b) - key(a) || b.s.n - a.s.n);
 
   $("#count").textContent = places.length ? `${rows.length}곳 / 전체 ${places.length}곳` : "";
@@ -474,7 +475,7 @@ function render(){
 
   $("#list").innerHTML = rows.map(({p, s, ph}) => `
     <li class="entry" tabindex="0" role="button" data-id="${esc(p.id)}" aria-label="${esc(p.name)} 자세히 보기">
-      <div class="cover">${ph.length ? `<img src="${esc(photoUrl(ph[0].path, true))}" alt="" loading="lazy">${ph.length > 1 ? `<span class="pc">사진 ${ph.length}</span>` : ""}` : PLATE}</div>
+      <div class="cover">${ph.length ? `<img src="${esc(photoUrl(ph[0], 400))}" alt="" loading="lazy">${ph.length > 1 ? `<span class="pc">사진 ${ph.length}</span>` : ""}` : PLATE}</div>
       <div>
         <h2>${esc(p.name)}</h2>
         <div class="meta"><span>${esc(p.category)}</span>${p.area ? `<span>${esc(p.area)}</span>` : ""}<span>${won(p.price)}</span></div>
@@ -496,11 +497,11 @@ $("#list").addEventListener("keydown", e => { if ((e.key === "Enter" || e.key ==
 document.querySelectorAll("dialog").forEach(d => {
   d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-close]")) d.close(); });
 });
-$("#detDlg").addEventListener("close", () => { openId = null; detailReviews = []; });
+$("#detDlg").addEventListener("close", () => { openId = null; });
 
 let addPick = null;
 $("#addBtn").addEventListener("click", () => {
-  if (!sb) return;
+  if (!ready) return;
   $("#addForm").reset(); $("#addErr").textContent = "";
   addPick = photoPicker($("#addPhotos"), $("#addErr"));
   $("#addDlg").showModal(); $("#f-name").focus();
@@ -509,39 +510,36 @@ $("#addForm").addEventListener("submit", async e => {
   e.preventDefault();
   const name = $("#f-name").value.trim();
   if (!name){ $("#addErr").textContent = "가게 이름을 입력해 주세요."; return; }
-  if (places.some(p => p.name.replace(/\s/g,"").toLowerCase() === name.replace(/\s/g,"").toLowerCase())){ $("#addErr").textContent = "이미 등록된 가게예요. 목록에서 찾아 리뷰를 남겨 주세요."; return; }
+  if (places.some(p => String(p.name).replace(/\s/g,"").toLowerCase() === name.replace(/\s/g,"").toLowerCase())){ $("#addErr").textContent = "이미 등록된 가게예요. 목록에서 찾아 리뷰를 남겨 주세요."; return; }
   if (addPick?.busy){ $("#addErr").textContent = "사진을 줄이는 중이에요. 잠시 후 다시 눌러 주세요."; return; }
   const btn = $("#addSubmit"); btn.disabled = true; btn.textContent = "등록 중…";
   try {
-    await ensureAuth();
-    const { data, error } = await sb.from("places").insert({
+    const { id } = await call("addPlace", {
       name, category: $("#f-cat").value, area: $("#f-area").value.trim(), address: $("#f-addr").value.trim(),
       signature: $("#f-sig").value.trim(), price: Number($("#f-price").value), description: $("#f-desc").value.trim()
-    }).select("id").single();
-    if (error) throw error;
-    if (addPick?.items.length){ btn.textContent = "사진 올리는 중…"; await uploadPhotos(addPick.items, data.id, null); }
+    });
+    if (addPick?.items.length) await uploadPhotos(addPick.items, id, "", btn);
     $("#addDlg").close();
     await loadAll();
-    openDetail(data.id);
+    openDetail(id);
   } catch (err) {
     $("#addErr").textContent = errMsg(err);
   } finally { btn.disabled = false; btn.textContent = "등록하기"; }
 });
 
 /* ---------- 상세 ---------- */
-async function openDetail(id){
-  openId = id; detailReviews = [];
+function openDetail(id){
+  openId = id;
   renderDetail(); renderForm();
   if (!$("#detDlg").open) $("#detDlg").showModal();
   $("#detDlg").scrollTop = 0;
-  await loadReviews(id);
-  renderDetail(); renderForm();
 }
 
 function renderDetail(){
   const p = places.find(x => x.id === openId);
   if (!p){ if ($("#detDlg").open) $("#detDlg").close(); return; }
-  const s = stats(p), ph = placePhotos(p.id);
+  const s = stats(p.id), ph = placePhotos(p.id);
+  const sorted = [...s.rs].sort((a, b) => b.createdAt - a.createdAt);
 
   $("#detInfo").innerHTML = `
     <div class="dlg-head">
@@ -551,7 +549,7 @@ function renderDetail(){
       </div>
       <button class="x" type="button" data-close aria-label="닫기">×</button>
     </div>
-    ${ph.length ? `<div class="gallery">${ph.map(t => `<button type="button" data-ph="${esc(t.id)}" aria-label="사진 크게 보기"><img src="${esc(photoUrl(t.path, true))}" alt="" loading="lazy"></button>`).join("")}</div>` : ""}
+    ${ph.length ? `<div class="gallery">${ph.map(t => `<button type="button" data-ph="${esc(t.id)}" aria-label="사진 크게 보기"><img src="${esc(photoUrl(t, 600))}" alt="" loading="lazy"></button>`).join("")}</div>` : ""}
     ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ""}
     ${p.signature ? `<div class="sig"><b>대표 메뉴</b> ${esc(p.signature)}</div>` : ""}
     ${p.address ? `<div class="sig"><b>주소</b> ${esc(p.address)} · <a href="https://map.naver.com/p/search/${encodeURIComponent(p.address)}" target="_blank" rel="noopener">지도에서 보기</a></div>` : ""}
@@ -568,31 +566,29 @@ function renderDetail(){
     </div>`;
 
   $("#detReviews").innerHTML = `
-    <div class="section-t">리뷰 ${detailReviews.length}개</div>
-    ${detailReviews.length ? `<ul class="reviews">${detailReviews.map(r => {
-      const isMe = me && r.author === me;
-      const rph = photos.filter(t => t.review_id === r.id);
-      const ov = Number(r.overall);
+    <div class="section-t">리뷰 ${s.n}개</div>
+    ${sorted.length ? `<ul class="reviews">${sorted.map(r => {
+      const isMe = r.owner === me;
+      const rph = photos.filter(t => t.reviewId === r.id);
       return `<li class="rv"><div class="rv-top">
         <span class="who">${esc(r.nickname)}${isMe ? " (나)" : ""}</span>
-        <span class="stars" aria-label="종합 ${ov.toFixed(1)}점">${starTxt(ov)}</span><span>${ov.toFixed(1)}</span>
+        <span class="stars" aria-label="종합 ${r.overall.toFixed(1)}점">${starTxt(r.overall)}</span><span>${r.overall.toFixed(1)}</span>
         ${r.revisit ? `<span class="tag">재방문 의사</span>` : ""}
         ${r.visited ? `<span>${esc(r.visited.replace("-", "년 "))}월 방문</span>` : ""}
       </div>
       <div class="rv-sub">${CRIT.map(([k, l]) => `<span>${l} <b>${r[k]}</b></span>`).join("")}</div>
       ${r.body ? `<p>${esc(r.body)}</p>` : ""}
-      ${rph.length ? `<div class="rv-photos">${rph.map(t => `<button type="button" data-ph="${esc(t.id)}" aria-label="사진 크게 보기"><img src="${esc(photoUrl(t.path, true))}" alt="" loading="lazy"></button>`).join("")}</div>` : ""}
+      ${rph.length ? `<div class="rv-photos">${rph.map(t => `<button type="button" data-ph="${esc(t.id)}" aria-label="사진 크게 보기"><img src="${esc(photoUrl(t, 300))}" alt="" loading="lazy"></button>`).join("")}</div>` : ""}
       </li>`; }).join("")}</ul>`
       : `<p class="hint">아직 리뷰가 없어요. 첫 평가를 남겨 주세요.</p>`}
-    ${me && p.added_by === me && !s.n ? `<div class="actions"><button class="linkbtn" type="button" id="plDel">내가 등록한 이 가게 삭제</button></div>` : ""}`;
+    ${p.owner === me && !s.n ? `<div class="actions"><button class="linkbtn" type="button" id="plDel">내가 등록한 이 가게 삭제</button></div>` : ""}`;
 }
 $("#detDlg").addEventListener("click", async e => {
   const b = e.target.closest("[data-ph]"); if (b) { viewPhoto(b.dataset.ph); return; }
   if (e.target.id === "plDel"){
-    const pid = openId;
-    const mine = placePhotos(pid).filter(t => t.author === me);
-    const { error } = await sb.from("places").delete().eq("id", pid);
-    if (!error){ await sb.storage.from("photos").remove(mine.flatMap(p => [p.path + ".jpg", p.path + "_t.jpg"])); $("#detDlg").close(); scheduleReload(); }
+    e.target.disabled = true; e.target.textContent = "삭제 중…";
+    try { await call("deletePlace", { id: openId }); $("#detDlg").close(); await loadAll(); }
+    catch (err) { e.target.textContent = errMsg(err); }
   }
 });
 
@@ -601,7 +597,7 @@ function renderForm(){
   const p = places.find(x => x.id === openId);
   const box = $("#detForm");
   if (!p) return;
-  const mine = me ? detailReviews.find(r => r.author === me) : null;
+  const mine = reviews.find(r => r.placeId === p.id && r.owner === me);
   box.innerHTML = `
     <div class="section-t">${mine ? "내 리뷰 수정" : "가봤다면 평가를 남겨 주세요"}</div>
     <form id="rvForm" novalidate>
@@ -631,7 +627,7 @@ function renderForm(){
   form.querySelector("#rv-nick").value = mine?.nickname || store.get("csl-nick") || "";
   form.querySelector("#rv-date").value = mine?.visited || "";
   form.querySelector("#rv-text").value = mine?.body || "";
-  rvPick = photoPicker(form.querySelector("#rvPhotos"), form.querySelector("#rvErr"), mine ? photos.filter(t => t.review_id === mine.id) : []);
+  rvPick = photoPicker(form.querySelector("#rvPhotos"), form.querySelector("#rvErr"), mine ? photos.filter(t => t.reviewId === mine.id) : []);
 
   const upd = () => {
     const vals = CRIT.map(([k, , caps]) => {
@@ -644,73 +640,61 @@ function renderForm(){
   form.addEventListener("change", e => { if (e.target.type === "radio") upd(); });
   upd();
   form.addEventListener("submit", e => { e.preventDefault(); saveReview(p.id, form); });
-  form.querySelector("#rvDel")?.addEventListener("click", () => delReview(p.id, mine));
+  form.querySelector("#rvDel")?.addEventListener("click", e => delReview(p.id, mine, e.target));
 }
 
 async function saveReview(pid, form){
   const err = form.querySelector("#rvErr");
-  const row = { place_id: pid };
+  const body = { placeId: pid };
   for (const [k, l] of CRIT){
     const v = Number(form.querySelector(`input[name="c-${k}"]:checked`)?.value || 0);
     if (!v){ err.textContent = `'${l}' 점수를 골라 주세요.`; return; }
-    row[k] = v;
+    body[k] = v;
   }
   const nick = form.querySelector("#rv-nick").value.trim();
   if (!nick){ err.textContent = "닉네임을 입력해 주세요."; return; }
   if (rvPick.busy){ err.textContent = "사진을 줄이는 중이에요. 잠시 후 다시 눌러 주세요."; return; }
   const btn = form.querySelector("#rvSubmit"); btn.disabled = true; btn.textContent = "저장 중…";
   try {
-    await ensureAuth();
     store.set("csl-nick", nick);
-    Object.assign(row, {
-      author: me, nickname: nick,
-      revisit: form.querySelector("#rv-revisit").checked,
-      body: form.querySelector("#rv-text").value.trim(),
-      visited: form.querySelector("#rv-date").value || "",
-      updated_at: new Date().toISOString()
+    Object.assign(body, {
+      nickname: nick, revisit: form.querySelector("#rv-revisit").checked,
+      body: form.querySelector("#rv-text").value.trim(), visited: form.querySelector("#rv-date").value || ""
     });
-    const { data, error } = await sb.from("reviews").upsert(row, { onConflict: "place_id,author" }).select("id").single();
-    if (error) throw error;
+    const { id } = await call("saveReview", body);
     await removePhotos(rvPick.removed);
-    if (rvPick.items.length){ btn.textContent = "사진 올리는 중…"; await uploadPhotos(rvPick.items, pid, data.id); }
-    await loadAll(); await loadReviews(pid);
-    if (openId === pid){ renderDetail(); renderForm(); $("#rvErr").textContent = "저장했어요."; }
+    if (rvPick.items.length) await uploadPhotos(rvPick.items, pid, id, btn);
+    await loadAll();
+    if (openId === pid){ renderForm(); $("#rvErr").textContent = "저장했어요."; }
   } catch (e) {
     err.textContent = errMsg(e);
     btn.disabled = false; btn.textContent = "다시 시도";
   }
 }
-async function delReview(pid, mine){
+async function delReview(pid, mine, btn){
   if (!mine) return;
-  const ph = photos.filter(t => t.review_id === mine.id);
-  const { error } = await sb.from("reviews").delete().eq("id", mine.id);
-  if (error){ $("#rvErr").textContent = errMsg(error); return; }
-  await sb.storage.from("photos").remove(ph.flatMap(p => [p.path + ".jpg", p.path + "_t.jpg"]));
-  await loadAll(); await loadReviews(pid);
-  if (openId === pid){ renderDetail(); renderForm(); }
+  btn.disabled = true; btn.textContent = "삭제 중…";
+  try { await call("deleteReview", { id: mine.id }); await loadAll(); if (openId === pid) renderForm(); }
+  catch (e) { $("#rvErr").textContent = errMsg(e); btn.disabled = false; btn.textContent = "내 리뷰 삭제"; }
 }
 
 /* ---------- 시작 ---------- */
 (async () => {
-  const cfg = window.CSL_CONFIG || {};
-  if (!window.supabase || !cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY){
-    $("#state").innerHTML = `<b>데이터베이스 연결 설정이 필요해요</b>config.js 에 Supabase 주소와 anon 키를 넣어 주세요. 자세한 방법은 README를 참고하세요.`;
+  if (!API){
+    $("#state").innerHTML = `<b>스프레드시트 연결 설정이 필요해요</b>config.js 에 Apps Script 웹 앱 주소를 넣어 주세요. 자세한 방법은 README를 참고하세요.`;
     $("#addBtn").disabled = true; return;
   }
-  sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
-  const { data } = await sb.auth.getSession();
-  me = data.session?.user?.id || null;
+  try { await initIdentity(); }
+  catch { $("#state").innerHTML = `<b>이 브라우저에서는 참여할 수 없어요</b>https 주소로 접속했는지 확인해 주세요.`; return; }
   try { await loadAll(); }
   catch (e) {
     $("#state").hidden = false;
-    $("#state").innerHTML = `<b>목록을 불러오지 못했어요</b>supabase/schema.sql 을 실행했는지 확인해 주세요. (${esc(e?.message || "")})`;
+    $("#state").innerHTML = `<b>목록을 불러오지 못했어요</b>Apps Script 배포 설정(액세스: 모든 사용자)을 확인해 주세요. (${esc(e?.message || "")})`;
     return;
   }
-  sb.channel("csl")
-    .on("postgres_changes", { event: "*", schema: "public", table: "places" }, scheduleReload)
-    .on("postgres_changes", { event: "*", schema: "public", table: "reviews" }, scheduleReload)
-    .on("postgres_changes", { event: "*", schema: "public", table: "photos" }, scheduleReload)
-    .subscribe();
+  // 다른 사람이 올린 내용 반영: 30초마다, 그리고 탭으로 돌아올 때
+  setInterval(() => { if (!document.hidden) loadAll().catch(() => {}); }, 30000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) loadAll().catch(() => {}); });
 })();
 </script>
 </body>
