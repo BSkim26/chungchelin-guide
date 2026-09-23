@@ -10,8 +10,8 @@
  *   reviews : 리뷰 (한 사람당 가게 하나에 리뷰 하나, overall = 네 항목 평균)
  *   photos  : 사진 (파일은 드라이브 '충슐랭 사진' 폴더, 여기엔 파일 id)
  *
- * '사람'은 로그인 대신 브라우저마다 만든 비밀 토큰으로 구분합니다.
- * 시트에는 토큰의 SHA-256 해시(owner)만 저장하고, 수정·삭제는 같은 토큰을 가진 브라우저만 할 수 있습니다.
+ * '사람' 구분: GOOGLE_CLIENT_ID 가 있으면 구글 로그인(계정당 가게 하나에 리뷰 1개),
+ * 없으면 브라우저마다 만든 비밀 토큰. 시트 owner 칸에는 어느 쪽이든 SHA-256 해시만 저장합니다(이메일 저장 안 함).
  */
 
 const SHEETS = {
@@ -19,6 +19,8 @@ const SHEETS = {
   reviews: ['id', 'placeId', 'owner', 'nickname', 'taste', 'service', 'mood', 'value', 'overall', 'revisit', 'body', 'visited', 'createdAt', 'updatedAt'],
   photos:  ['id', 'placeId', 'reviewId', 'owner', 'fileId', 'createdAt']
 };
+// 구글 로그인을 쓰려면 Google Cloud 에서 만든 OAuth 클라이언트 ID 를 넣으세요. 비워 두면 브라우저 토큰 방식.
+const GOOGLE_CLIENT_ID = '';
 const CATS = ['한식', '해장국·탕', '면·냉면', '고기·구이', '중식', '일식·회', '분식', '카페·디저트', '기타'];
 const FOLDER_NAME = '충슐랭 사진';
 const MAX_PHOTOS = 3;
@@ -63,8 +65,7 @@ function doPost(e) {
   const lock = LockService.getScriptLock();
   try {
     const req = JSON.parse(e.postData.contents || '{}');
-    if (!req.token || String(req.token).length < 20) throw new Error('잘못된 요청이에요.');
-    const owner = hash_(req.token);
+    const owner = identify_(req);
     lock.waitLock(20000);
     const handlers = { addPlace, deletePlace, saveReview, deleteReview, addPhoto, deletePhoto };
     const fn = handlers[req.action];
@@ -220,6 +221,31 @@ function folder_() {
   const f = DriveApp.createFolder(FOLDER_NAME);
   props.setProperty('FOLDER_ID', f.getId());
   return f;
+}
+
+/* ───────── 사람 확인 ───────── */
+function identify_(req) {
+  if (GOOGLE_CLIENT_ID) {
+    const idToken = String(req.idToken || '');
+    if (!idToken) throw new Error('구글 로그인이 필요해요.');
+    const cache = CacheService.getScriptCache();
+    const key = 'g:' + hash_(idToken).slice(0, 48);
+    let sub = cache.get(key);
+    if (!sub) {
+      const res = UrlFetchApp.fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken), { muteHttpExceptions: true });
+      if (res.getResponseCode() !== 200) throw new Error('로그인이 만료됐어요. 다시 로그인해 주세요.');
+      const info = JSON.parse(res.getContentText());
+      const left = Number(info.exp) - Math.floor(Date.now() / 1000);
+      if (info.aud !== GOOGLE_CLIENT_ID || !/^(https:\/\/)?accounts\.google\.com$/.test(info.iss) || !(left > 0)) {
+        throw new Error('로그인 정보가 올바르지 않아요. 다시 로그인해 주세요.');
+      }
+      sub = String(info.sub);
+      cache.put(key, sub, Math.max(1, Math.min(left, 3600)));
+    }
+    return hash_('g:' + sub);
+  }
+  if (!req.token || String(req.token).length < 20) throw new Error('잘못된 요청이에요.');
+  return hash_(req.token);
 }
 
 /* ───────── 값 검사 ───────── */

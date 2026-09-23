@@ -50,6 +50,11 @@ h1 .r{color:var(--red)}
 .btn.ghost{background:transparent;color:var(--ink)}
 .btn.ghost:hover{color:var(--bg);background:var(--ink)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
+.head-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.who-me{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.who-me img{width:28px;height:28px;border-radius:50%}
+.who-me b{color:var(--ink);font-weight:600}
+.gbtn{min-height:40px;margin-top:10px}
 
 /* legend */
 .legend{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}
@@ -218,7 +223,7 @@ footer{margin-top:40px;padding-top:18px;border-top:2px solid var(--ink);font-siz
       <h1>충<span class="r">슐랭</span> 가이드</h1>
       <p class="lede">충주 사람들이 직접 올리고, 가본 사람이 맛·서비스·분위기·가성비를 평가하는 맛집 안내서. 평점에 따라 사과가 붙고, 사과를 누르면 그 등급 맛집만 모아 볼 수 있어요.</p>
     </div>
-    <button class="btn" id="addBtn" type="button">+ 맛집 등록</button>
+    <div class="head-actions"><div id="authBox"></div><button class="btn" id="addBtn" type="button">+ 맛집 등록</button></div>
   </header>
 
   <section class="legend" id="legend" aria-label="등급별로 보기"></section>
@@ -280,6 +285,15 @@ footer{margin-top:40px;padding-top:18px;border-top:2px solid var(--ink);font-siz
   </div>
 </dialog>
 
+<!-- google login -->
+<dialog id="loginDlg" aria-labelledby="loginT" style="width:min(420px,calc(100% - 24px))">
+  <div class="dlg">
+    <div class="dlg-head"><h3 id="loginT">로그인이 필요해요</h3><button class="x" type="button" data-close aria-label="닫기">×</button></div>
+    <p class="hint" style="margin:0">맛집 등록과 리뷰는 구글 계정으로 로그인한 뒤 쓸 수 있어요. 계정당 가게 하나에 리뷰 1개만 남길 수 있고, 이메일은 저장하지 않아요.</p>
+    <div class="gbtn"></div>
+  </div>
+</dialog>
+
 <!-- photo viewer -->
 <dialog id="imgDlg" aria-label="사진 크게 보기">
   <button class="x" type="button" data-close aria-label="닫기">×</button>
@@ -307,10 +321,12 @@ const appleCover = lv => {
   const n = lv > 0 ? lv : 1, cls = lv > 0 ? "l" + lv : lv === 0 ? "l1 rec" : "l1 none";
   return `<span class="apples ${cls}" aria-hidden="true">${'<svg><use href="#blossom"/></svg>'.repeat(n)}</span>`;
 };
-const store = { get(k){ try { return localStorage.getItem(k); } catch { return null; } }, set(k, v){ try { localStorage.setItem(k, v); } catch {} } };
+const store = { get(k){ try { return localStorage.getItem(k); } catch { return null; } }, set(k, v){ try { localStorage.setItem(k, v); } catch {} }, del(k){ try { localStorage.removeItem(k); } catch {} } };
 
 const API = (window.CSL_CONFIG || {}).API_URL || "";
-let token = "", me = "";              // token = 이 브라우저의 비밀 토큰, me = 시트에 저장되는 해시
+const GCID = (window.CSL_CONFIG || {}).GOOGLE_CLIENT_ID || "";   // 비어 있으면 브라우저 토큰 방식
+let token = "", me = "";              // me = 시트 owner 칸과 같은 해시 (내 글 판별용)
+let idToken = "", gUser = null, afterLogin = null;
 let places = [], reviews = [], photos = [];
 let filter = "전체", openId = null, ready = false;
 
@@ -329,8 +345,83 @@ $("#q").addEventListener("input", render);
 $("#sort").addEventListener("change", () => { store.set("csl-sort", $("#sort").value); render(); });
 renderChips();
 
-/* ---------- 나 = 브라우저 토큰 ---------- */
+/* ---------- 나: 구글 로그인 (GOOGLE_CLIENT_ID 가 있을 때) 또는 브라우저 토큰 ---------- */
+const sha256 = async s => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s))), x => x.toString(16).padStart(2, "0")).join("");
+function decodeJwt(t){
+  const p = t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+  return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(p), c => c.charCodeAt(0))));
+}
+const needLogin = () => !!GCID && (!idToken || !gUser || gUser.exp < Date.now() + 60000);
+async function useCredential(cred){
+  try {
+    const p = decodeJwt(cred);
+    if (p.aud !== GCID || p.exp * 1000 < Date.now() + 60000) return false;
+    idToken = cred;
+    gUser = { name: p.name || "", given: p.given_name || p.name || "", picture: p.picture || "", exp: p.exp * 1000 };
+    me = await sha256("g:" + p.sub);
+    store.set("csl-gcred", cred);
+    return true;
+  } catch { return false; }
+}
+function logout(){
+  try { google.accounts.id.disableAutoSelect(); } catch {}
+  idToken = ""; gUser = null; me = ""; store.del("csl-gcred");
+  refreshAfterAuth();
+}
+function refreshAfterAuth(){
+  renderAuth(); render();
+  if (openId){ renderDetail(); renderForm(); }
+}
+function mountGoogleButtons(){
+  if (!window.google?.accounts?.id) return;
+  document.querySelectorAll(".gbtn").forEach(el => {
+    if (el.dataset.done) return;
+    el.dataset.done = "1";
+    google.accounts.id.renderButton(el, { theme: "outline", size: "large", text: "signin_with", shape: "rectangular", locale: "ko" });
+  });
+}
+function renderAuth(){
+  const box = $("#authBox");
+  if (!GCID){ box.innerHTML = ""; return; }
+  if (gUser && !needLogin()){
+    box.innerHTML = `<div class="who-me">${gUser.picture ? `<img src="${esc(gUser.picture)}" alt="" referrerpolicy="no-referrer">` : ""}<b>${esc(gUser.name)}</b><button type="button" class="linkbtn" id="logoutBtn">로그아웃</button></div>`;
+    $("#logoutBtn").addEventListener("click", logout);
+  } else {
+    box.innerHTML = `<div class="gbtn" style="margin:0"></div>`;
+    mountGoogleButtons();
+  }
+}
+function requireLogin(then){
+  if (!needLogin()) return true;
+  afterLogin = then || null;
+  if (!$("#loginDlg").open) $("#loginDlg").showModal();
+  mountGoogleButtons();
+  return false;
+}
+function loadGoogle(){
+  const s = document.createElement("script");
+  s.src = "https://accounts.google.com/gsi/client"; s.async = true;
+  s.onload = () => {
+    google.accounts.id.initialize({
+      client_id: GCID, auto_select: true, cancel_on_tap_outside: true,
+      callback: async r => {
+        if (!(await useCredential(r.credential))) return;
+        if ($("#loginDlg").open) $("#loginDlg").close();
+        refreshAfterAuth();
+        const next = afterLogin; afterLogin = null; if (next) next();
+      }
+    });
+    renderAuth(); mountGoogleButtons();
+  };
+  document.head.appendChild(s);
+}
 async function initIdentity(){
+  if (GCID){
+    const saved = store.get("csl-gcred");
+    if (saved && !(await useCredential(saved))) store.del("csl-gcred");
+    renderAuth(); loadGoogle();
+    return;
+  }
   token = store.get("csl-token");
   if (!token){
     const b = crypto.getRandomValues(new Uint8Array(24));
@@ -359,10 +450,14 @@ async function loadAll(){
   if (openId) renderDetail();
 }
 async function call(action, body){
+  if (needLogin()){ requireLogin(); throw new Error("로그인이 필요해요. 구글로 로그인한 뒤 다시 눌러 주세요."); }
   const res = await fetch(API, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ action, token, ...body }) });
+    body: JSON.stringify(GCID ? { action, idToken, ...body } : { action, token, ...body }) });
   const j = await res.json();
-  if (!j.ok) throw new Error(j.error || "요청을 처리하지 못했어요.");
+  if (!j.ok){
+    if (GCID && /로그인/.test(j.error || "")){ idToken = ""; gUser = null; store.del("csl-gcred"); renderAuth(); }
+    throw new Error(j.error || "요청을 처리하지 못했어요.");
+  }
   return j.result;
 }
 const errMsg = e => e?.message && !/fetch|network|JSON/i.test(e.message) ? e.message : "서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.";
@@ -542,8 +637,9 @@ document.querySelectorAll("dialog").forEach(d => {
 $("#detDlg").addEventListener("close", () => { openId = null; });
 
 let addPick = null;
-$("#addBtn").addEventListener("click", () => {
+$("#addBtn").addEventListener("click", function openAdd(){
   if (!ready) return;
+  if (!requireLogin(openAdd)) return;
   $("#addForm").reset(); $("#addErr").textContent = "";
   addPick = photoPicker($("#addPhotos"), $("#addErr"));
   $("#addDlg").showModal(); $("#f-name").focus();
@@ -639,6 +735,12 @@ function renderForm(){
   const p = places.find(x => x.id === openId);
   const box = $("#detForm");
   if (!p) return;
+  if (needLogin()){
+    box.innerHTML = `<div class="section-t">가봤다면 평가를 남겨 주세요</div>
+      <div class="note">리뷰는 구글 로그인 후 쓸 수 있어요. 계정당 가게 하나에 리뷰 1개만 남길 수 있어요.<div class="gbtn"></div></div>`;
+    mountGoogleButtons();
+    return;
+  }
   const mine = reviews.find(r => r.placeId === p.id && r.owner === me);
   box.innerHTML = `
     <div class="section-t">${mine ? "내 리뷰 수정" : "가봤다면 평가를 남겨 주세요"}</div>
@@ -666,7 +768,7 @@ function renderForm(){
   const form = box.querySelector("#rvForm");
   if (mine) CRIT.forEach(([k]) => { const el = form.querySelector(`#c-${k}-${mine[k]}`); if (el) el.checked = true; });
   form.querySelector("#rv-revisit").checked = !!mine?.revisit;
-  form.querySelector("#rv-nick").value = mine?.nickname || store.get("csl-nick") || "";
+  form.querySelector("#rv-nick").value = mine?.nickname || store.get("csl-nick") || gUser?.given || "";
   form.querySelector("#rv-date").value = mine?.visited || "";
   form.querySelector("#rv-text").value = mine?.body || "";
   rvPick = photoPicker(form.querySelector("#rvPhotos"), form.querySelector("#rvErr"), mine ? photos.filter(t => t.reviewId === mine.id) : []);
