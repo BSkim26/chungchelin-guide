@@ -10,17 +10,19 @@
  *   reviews : 리뷰 (한 사람당 가게 하나에 리뷰 하나, overall = 네 항목 평균)
  *   photos  : 사진 (파일은 드라이브 '충슐랭 사진' 폴더, 여기엔 파일 id)
  *
- * '사람' 구분: GOOGLE_CLIENT_ID 가 있으면 구글 로그인(계정당 가게 하나에 리뷰 1개),
- * 없으면 브라우저마다 만든 비밀 토큰. 시트 owner 칸에는 어느 쪽이든 SHA-256 해시만 저장합니다(이메일 저장 안 함).
+ * 사람 구분: 아이디 + 숫자 4자리 비밀번호 계정 (users 탭).
+ *   비밀번호는 솔트를 섞은 해시로만 저장하고, 5번 틀리면 10분 동안 잠급니다.
+ *   로그인하면 서명된 세션 토큰(30일)을 주고, 글의 owner 칸에는 아이디의 해시를 저장합니다.
+ *   → 아이디 하나당 가게 하나에 리뷰 1개.
  */
 
 const SHEETS = {
   places:  ['id', 'name', 'category', 'area', 'address', 'signature', 'price', 'description', 'owner', 'createdAt'],
   reviews: ['id', 'placeId', 'owner', 'nickname', 'taste', 'service', 'mood', 'value', 'overall', 'revisit', 'body', 'visited', 'createdAt', 'updatedAt'],
-  photos:  ['id', 'placeId', 'reviewId', 'owner', 'fileId', 'createdAt']
+  photos:  ['id', 'placeId', 'reviewId', 'owner', 'fileId', 'createdAt'],
+  users:   ['username', 'key', 'salt', 'pinHash', 'createdAt']
 };
-// 구글 로그인을 쓰려면 Google Cloud 에서 만든 OAuth 클라이언트 ID 를 넣으세요. 비워 두면 브라우저 토큰 방식.
-const GOOGLE_CLIENT_ID = '';
+const SESSION_DAYS = 30;
 const CATS = ['한식', '해장국·탕', '면·냉면', '고기·구이', '중식', '일식·회', '분식', '카페·디저트', '기타'];
 const FOLDER_NAME = '충슐랭 사진';
 const MAX_PHOTOS = 3;
@@ -65,6 +67,10 @@ function doPost(e) {
   const lock = LockService.getScriptLock();
   try {
     const req = JSON.parse(e.postData.contents || '{}');
+    if (req.action === 'register' || req.action === 'login') {
+      lock.waitLock(20000);
+      return json_({ ok: true, result: req.action === 'register' ? register_(req) : login_(req) });
+    }
     const owner = identify_(req);
     lock.waitLock(20000);
     const handlers = { addPlace, deletePlace, saveReview, deleteReview, addPhoto, deletePhoto };
@@ -72,7 +78,7 @@ function doPost(e) {
     if (!fn) throw new Error('알 수 없는 요청이에요.');
     return json_({ ok: true, result: fn(req, owner) });
   } catch (err) {
-    return json_({ ok: false, error: String(err.message || err) });
+    return json_({ ok: false, error: String(err.message || err), code: err.code || '' });
   } finally {
     try { lock.releaseLock(); } catch (_) {}
   }
@@ -200,7 +206,7 @@ function rows_(name) {
     const o = {};
     headers.forEach((h, i) => { const v = r[i]; o[h] = v instanceof Date ? v.toISOString() : v; });
     return o;
-  }).filter(o => o.id);
+  }).filter(o => o[headers[0]] !== "" && o[headers[0]] != null);
 }
 
 function find_(name, id) {
@@ -223,29 +229,68 @@ function folder_() {
   return f;
 }
 
-/* ───────── 사람 확인 ───────── */
-function identify_(req) {
-  if (GOOGLE_CLIENT_ID) {
-    const idToken = String(req.idToken || '');
-    if (!idToken) throw new Error('구글 로그인이 필요해요.');
-    const cache = CacheService.getScriptCache();
-    const key = 'g:' + hash_(idToken).slice(0, 48);
-    let sub = cache.get(key);
-    if (!sub) {
-      const res = UrlFetchApp.fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken), { muteHttpExceptions: true });
-      if (res.getResponseCode() !== 200) throw new Error('로그인이 만료됐어요. 다시 로그인해 주세요.');
-      const info = JSON.parse(res.getContentText());
-      const left = Number(info.exp) - Math.floor(Date.now() / 1000);
-      if (info.aud !== GOOGLE_CLIENT_ID || !/^(https:\/\/)?accounts\.google\.com$/.test(info.iss) || !(left > 0)) {
-        throw new Error('로그인 정보가 올바르지 않아요. 다시 로그인해 주세요.');
-      }
-      sub = String(info.sub);
-      cache.put(key, sub, Math.max(1, Math.min(left, 3600)));
-    }
-    return hash_('g:' + sub);
+/* ───────── 계정 ───────── */
+function normKey_(username) { return String(username || '').trim().toLowerCase(); }
+
+function register_(req) {
+  const username = String(req.username || '').trim();
+  if (!/^[가-힣a-zA-Z0-9_]{2,12}$/.test(username)) throw new Error('아이디는 한글·영문·숫자로 2~12자예요.');
+  if (!/^\d{4}$/.test(String(req.pin || ''))) throw new Error('비밀번호는 숫자 4자리예요.');
+  const key = normKey_(username);
+  if (rows_('users').some(u => String(u.key) === key)) throw new Error('이미 있는 아이디예요. 다른 아이디를 써 주세요.');
+  const salt = Utilities.getUuid();
+  // 앞에 ' 를 붙여 '0123' 같은 숫자 아이디도 글자 그대로 저장
+  append_('users', { username: "'" + username, key: "'" + key, salt, pinHash: pinHash_(salt, req.pin), createdAt: Date.now() });
+  return session_(key, username);
+}
+
+function login_(req) {
+  const key = normKey_(req.username);
+  const cache = CacheService.getScriptCache();
+  const failKey = 'fail:' + hash_(key).slice(0, 40);
+  const fails = Number(cache.get(failKey) || 0);
+  if (fails >= 5) throw new Error('비밀번호를 5번 틀려서 10분 동안 로그인할 수 없어요.');
+  const u = rows_('users').find(x => String(x.key) === key);
+  if (!u || pinHash_(u.salt, req.pin) !== u.pinHash) {
+    cache.put(failKey, String(fails + 1), 600);
+    throw new Error('아이디 또는 비밀번호가 맞지 않아요.' + (fails + 1 >= 3 ? ` (${fails + 1}/5회)` : ''));
   }
-  if (!req.token || String(req.token).length < 20) throw new Error('잘못된 요청이에요.');
-  return hash_(req.token);
+  cache.remove(failKey);
+  return session_(key, String(u.username));
+}
+
+function pinHash_(salt, pin) {
+  let h = String(salt) + ':' + String(pin);
+  for (let i = 0; i < 300; i++) h = hash_(h + ':' + salt);
+  return h;
+}
+
+function secret_() {
+  const props = PropertiesService.getScriptProperties();
+  let s = props.getProperty('SESSION_SECRET');
+  if (!s) { s = Utilities.getUuid() + Utilities.getUuid(); props.setProperty('SESSION_SECRET', s); }
+  return s;
+}
+function sign_(data) {
+  return Utilities.computeHmacSha256Signature(data, secret_())
+    .map(b => ('0' + (b & 0xff).toString(16)).slice(-2)).join('');
+}
+function session_(key, name) {
+  const exp = Date.now() + SESSION_DAYS * 864e5;
+  const payload = Utilities.base64EncodeWebSafe(key, Utilities.Charset.UTF_8) + '.' + exp;
+  return { token: payload + '.' + sign_(payload), key, name, exp };
+}
+
+/* ───────── 사람 확인: 세션 토큰 → owner ───────── */
+function identify_(req) {
+  const fail = msg => { const e = new Error(msg); e.code = 'auth'; throw e; };
+  const parts = String(req.session || '').split('.');
+  if (parts.length !== 3) fail('로그인이 필요해요.');
+  const payload = parts[0] + '.' + parts[1];
+  if (sign_(payload) !== parts[2]) fail('로그인 정보가 올바르지 않아요. 다시 로그인해 주세요.');
+  if (!(Number(parts[1]) > Date.now())) fail('로그인이 만료됐어요. 다시 로그인해 주세요.');
+  const key = Utilities.newBlob(Utilities.base64DecodeWebSafe(parts[0])).getDataAsString('UTF-8');
+  return hash_('u:' + key);
 }
 
 /* ───────── 값 검사 ───────── */

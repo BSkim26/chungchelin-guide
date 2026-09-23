@@ -54,7 +54,8 @@ h1 .r{color:var(--red)}
 .who-me{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
 .who-me img{width:28px;height:28px;border-radius:50%}
 .who-me b{color:var(--ink);font-weight:600}
-.gbtn{min-height:40px;margin-top:10px}
+.pin{letter-spacing:.5em;font-family:var(--mono)}
+.switch{margin-top:14px;text-align:center}
 
 /* legend */
 .legend{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}
@@ -285,13 +286,18 @@ footer{margin-top:40px;padding-top:18px;border-top:2px solid var(--ink);font-siz
   </div>
 </dialog>
 
-<!-- google login -->
+<!-- account login -->
 <dialog id="loginDlg" aria-labelledby="loginT" style="width:min(420px,calc(100% - 24px))">
-  <div class="dlg">
-    <div class="dlg-head"><h3 id="loginT">로그인이 필요해요</h3><button class="x" type="button" data-close aria-label="닫기">×</button></div>
-    <p class="hint" style="margin:0">맛집 등록과 리뷰는 구글 계정으로 로그인한 뒤 쓸 수 있어요. 계정당 가게 하나에 리뷰 1개만 남길 수 있고, 이메일은 저장하지 않아요.</p>
-    <div class="gbtn"></div>
-  </div>
+  <form class="dlg" id="loginForm" novalidate>
+    <div class="dlg-head"><h3 id="loginT">로그인</h3><button class="x" type="button" data-close aria-label="닫기">×</button></div>
+    <p class="hint" id="lg-hint" style="margin:0">맛집 등록과 리뷰는 로그인한 뒤 쓸 수 있어요.</p>
+    <div class="field"><label for="lg-id">아이디</label><input id="lg-id" maxlength="12" autocomplete="username" placeholder="예: 연수동먹보"></div>
+    <div class="field"><label for="lg-pin">비밀번호 (숫자 4자리)</label><input id="lg-pin" class="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="current-password" placeholder="••••"></div>
+    <div class="field" id="lg-pin2-wrap" hidden><label for="lg-pin2">비밀번호 확인</label><input id="lg-pin2" class="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="••••"></div>
+    <div class="err" id="lg-err" role="alert"></div>
+    <div class="actions"><button class="btn" type="submit" id="lg-submit" style="width:100%;justify-content:center">로그인</button></div>
+    <div class="switch"><button type="button" class="linkbtn" id="lg-switch">처음이세요? 가입하기</button></div>
+  </form>
 </dialog>
 
 <!-- photo viewer -->
@@ -324,9 +330,8 @@ const appleCover = lv => {
 const store = { get(k){ try { return localStorage.getItem(k); } catch { return null; } }, set(k, v){ try { localStorage.setItem(k, v); } catch {} }, del(k){ try { localStorage.removeItem(k); } catch {} } };
 
 const API = (window.CSL_CONFIG || {}).API_URL || "";
-const GCID = (window.CSL_CONFIG || {}).GOOGLE_CLIENT_ID || "";   // 비어 있으면 브라우저 토큰 방식
-let token = "", me = "";              // me = 시트 owner 칸과 같은 해시 (내 글 판별용)
-let idToken = "", gUser = null, afterLogin = null;
+let me = "";                          // 시트 owner 칸과 같은 해시 (내 글 판별용)
+let session = null, afterLogin = null; // session = { token, key, name, exp }
 let places = [], reviews = [], photos = [];
 let filter = "전체", openId = null, ready = false;
 
@@ -345,91 +350,80 @@ $("#q").addEventListener("input", render);
 $("#sort").addEventListener("change", () => { store.set("csl-sort", $("#sort").value); render(); });
 renderChips();
 
-/* ---------- 나: 구글 로그인 (GOOGLE_CLIENT_ID 가 있을 때) 또는 브라우저 토큰 ---------- */
+/* ---------- 나: 아이디 + 숫자 4자리 비밀번호 계정 ---------- */
+// 로그인하면 서버가 서명한 세션 토큰(30일)을 받아 이 브라우저에 보관합니다.
 const sha256 = async s => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s))), x => x.toString(16).padStart(2, "0")).join("");
-function decodeJwt(t){
-  const p = t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-  return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(p), c => c.charCodeAt(0))));
-}
-const needLogin = () => !!GCID && (!idToken || !gUser || gUser.exp < Date.now() + 60000);
-async function useCredential(cred){
-  try {
-    const p = decodeJwt(cred);
-    if (p.aud !== GCID || p.exp * 1000 < Date.now() + 60000) return false;
-    idToken = cred;
-    gUser = { name: p.name || "", given: p.given_name || p.name || "", picture: p.picture || "", exp: p.exp * 1000 };
-    me = await sha256("g:" + p.sub);
-    store.set("csl-gcred", cred);
-    return true;
-  } catch { return false; }
+const needLogin = () => !session || session.exp < Date.now() + 60000;
+async function useSession(s){
+  if (!s || !s.token || !s.key || !(s.exp > Date.now() + 60000)) return false;
+  session = s;
+  me = await sha256("u:" + s.key);        // 시트 owner 칸과 같은 값 → 내 글 판별
+  store.set("csl-session", JSON.stringify(s));
+  return true;
 }
 function logout(){
-  try { google.accounts.id.disableAutoSelect(); } catch {}
-  idToken = ""; gUser = null; me = ""; store.del("csl-gcred");
+  session = null; me = ""; store.del("csl-session");
   refreshAfterAuth();
 }
 function refreshAfterAuth(){
   renderAuth(); render();
   if (openId){ renderDetail(); renderForm(); }
 }
-function mountGoogleButtons(){
-  if (!window.google?.accounts?.id) return;
-  document.querySelectorAll(".gbtn").forEach(el => {
-    if (el.dataset.done) return;
-    el.dataset.done = "1";
-    google.accounts.id.renderButton(el, { theme: "outline", size: "large", text: "signin_with", shape: "rectangular", locale: "ko" });
-  });
-}
 function renderAuth(){
   const box = $("#authBox");
-  if (!GCID){ box.innerHTML = ""; return; }
-  if (gUser && !needLogin()){
-    box.innerHTML = `<div class="who-me">${gUser.picture ? `<img src="${esc(gUser.picture)}" alt="" referrerpolicy="no-referrer">` : ""}<b>${esc(gUser.name)}</b><button type="button" class="linkbtn" id="logoutBtn">로그아웃</button></div>`;
+  if (!needLogin()){
+    box.innerHTML = `<div class="who-me"><b>${esc(session.name)}</b>님<button type="button" class="linkbtn" id="logoutBtn">로그아웃</button></div>`;
     $("#logoutBtn").addEventListener("click", logout);
   } else {
-    box.innerHTML = `<div class="gbtn" style="margin:0"></div>`;
-    mountGoogleButtons();
+    box.innerHTML = `<button type="button" class="btn ghost" id="loginBtn">로그인 · 가입</button>`;
+    $("#loginBtn").addEventListener("click", () => requireLogin());
   }
+}
+let loginMode = "login";
+function setLoginMode(m){
+  loginMode = m;
+  $("#loginT").textContent = m === "login" ? "로그인" : "가입하기";
+  $("#lg-submit").textContent = m === "login" ? "로그인" : "가입하고 로그인";
+  $("#lg-switch").textContent = m === "login" ? "처음이세요? 가입하기" : "이미 아이디가 있어요 · 로그인";
+  $("#lg-pin2-wrap").hidden = m === "login";
+  $("#lg-hint").textContent = m === "login"
+    ? "맛집 등록과 리뷰는 로그인한 뒤 쓸 수 있어요."
+    : "아이디는 2~12자(한글·영문·숫자), 비밀번호는 숫자 4자리예요. 비밀번호는 찾을 수 없으니 꼭 기억해 두세요.";
+  $("#lg-err").textContent = "";
 }
 function requireLogin(then){
   if (!needLogin()) return true;
   afterLogin = then || null;
+  $("#loginForm").reset(); setLoginMode("login");
   if (!$("#loginDlg").open) $("#loginDlg").showModal();
-  mountGoogleButtons();
+  $("#lg-id").focus();
   return false;
 }
-function loadGoogle(){
-  const s = document.createElement("script");
-  s.src = "https://accounts.google.com/gsi/client"; s.async = true;
-  s.onload = () => {
-    google.accounts.id.initialize({
-      client_id: GCID, auto_select: true, cancel_on_tap_outside: true,
-      callback: async r => {
-        if (!(await useCredential(r.credential))) return;
-        if ($("#loginDlg").open) $("#loginDlg").close();
-        refreshAfterAuth();
-        const next = afterLogin; afterLogin = null; if (next) next();
-      }
-    });
-    renderAuth(); mountGoogleButtons();
-  };
-  document.head.appendChild(s);
-}
+$("#lg-switch").addEventListener("click", () => setLoginMode(loginMode === "login" ? "register" : "login"));
+document.querySelectorAll("#lg-pin, #lg-pin2").forEach(el => el.addEventListener("input", () => { el.value = el.value.replace(/\D/g, "").slice(0, 4); }));
+$("#loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const err = $("#lg-err"), id = $("#lg-id").value.trim(), pin = $("#lg-pin").value;
+  if (!/^[가-힣a-zA-Z0-9_]{2,12}$/.test(id)){ err.textContent = "아이디는 한글·영문·숫자로 2~12자예요."; return; }
+  if (!/^\d{4}$/.test(pin)){ err.textContent = "비밀번호는 숫자 4자리예요."; return; }
+  if (loginMode === "register" && $("#lg-pin2").value !== pin){ err.textContent = "비밀번호 확인이 달라요."; return; }
+  const btn = $("#lg-submit"), label = btn.textContent; btn.disabled = true; btn.textContent = "확인 중…";
+  try {
+    const res = await fetch(API, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: loginMode === "login" ? "login" : "register", username: id, pin }) });
+    const j = await res.json();
+    if (!j.ok) throw new Error(j.error);
+    await useSession(j.result);
+    $("#loginDlg").close();
+    refreshAfterAuth();
+    const next = afterLogin; afterLogin = null; if (next) next();
+  } catch (ex) { err.textContent = errMsg(ex); }
+  finally { btn.disabled = false; btn.textContent = label; }
+});
 async function initIdentity(){
-  if (GCID){
-    const saved = store.get("csl-gcred");
-    if (saved && !(await useCredential(saved))) store.del("csl-gcred");
-    renderAuth(); loadGoogle();
-    return;
-  }
-  token = store.get("csl-token");
-  if (!token){
-    const b = crypto.getRandomValues(new Uint8Array(24));
-    token = Array.from(b, x => x.toString(16).padStart(2, "0")).join("");
-    store.set("csl-token", token);
-  }
-  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
-  me = Array.from(new Uint8Array(d), x => x.toString(16).padStart(2, "0")).join("");
+  let s = null; try { s = JSON.parse(store.get("csl-session") || "null"); } catch {}
+  if (!(await useSession(s))) store.del("csl-session");
+  renderAuth();
 }
 
 /* ---------- API (Apps Script 웹 앱) ---------- */
@@ -450,12 +444,12 @@ async function loadAll(){
   if (openId) renderDetail();
 }
 async function call(action, body){
-  if (needLogin()){ requireLogin(); throw new Error("로그인이 필요해요. 구글로 로그인한 뒤 다시 눌러 주세요."); }
+  if (needLogin()){ requireLogin(); throw new Error("로그인이 필요해요. 로그인한 뒤 다시 눌러 주세요."); }
   const res = await fetch(API, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify(GCID ? { action, idToken, ...body } : { action, token, ...body }) });
+    body: JSON.stringify({ action, session: session.token, ...body }) });
   const j = await res.json();
   if (!j.ok){
-    if (GCID && /로그인/.test(j.error || "")){ idToken = ""; gUser = null; store.del("csl-gcred"); renderAuth(); }
+    if (j.code === "auth"){ session = null; me = ""; store.del("csl-session"); renderAuth(); requireLogin(); }
     throw new Error(j.error || "요청을 처리하지 못했어요.");
   }
   return j.result;
@@ -737,8 +731,9 @@ function renderForm(){
   if (!p) return;
   if (needLogin()){
     box.innerHTML = `<div class="section-t">가봤다면 평가를 남겨 주세요</div>
-      <div class="note">리뷰는 구글 로그인 후 쓸 수 있어요. 계정당 가게 하나에 리뷰 1개만 남길 수 있어요.<div class="gbtn"></div></div>`;
-    mountGoogleButtons();
+      <div class="note">리뷰는 로그인한 뒤 쓸 수 있어요. 아이디 하나당 가게 하나에 리뷰 1개만 남길 수 있어요.
+        <div class="actions" style="justify-content:flex-start;margin-top:10px"><button type="button" class="btn" id="rvLogin">로그인 · 가입</button></div></div>`;
+    box.querySelector("#rvLogin").addEventListener("click", () => requireLogin());
     return;
   }
   const mine = reviews.find(r => r.placeId === p.id && r.owner === me);
@@ -768,7 +763,7 @@ function renderForm(){
   const form = box.querySelector("#rvForm");
   if (mine) CRIT.forEach(([k]) => { const el = form.querySelector(`#c-${k}-${mine[k]}`); if (el) el.checked = true; });
   form.querySelector("#rv-revisit").checked = !!mine?.revisit;
-  form.querySelector("#rv-nick").value = mine?.nickname || store.get("csl-nick") || gUser?.given || "";
+  form.querySelector("#rv-nick").value = mine?.nickname || store.get("csl-nick") || session?.name || "";
   form.querySelector("#rv-date").value = mine?.visited || "";
   form.querySelector("#rv-text").value = mine?.body || "";
   rvPick = photoPicker(form.querySelector("#rvPhotos"), form.querySelector("#rvErr"), mine ? photos.filter(t => t.reviewId === mine.id) : []);

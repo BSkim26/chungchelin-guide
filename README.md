@@ -31,11 +31,12 @@ apps-script/Code.gs   스프레드시트 백엔드 — 스프레드시트의 App
 |---|---|
 | `places` 맛집 | id, name, category, area, address, signature, price(1~4), description, owner, createdAt |
 | `reviews` 리뷰 | id, placeId, owner, nickname, taste, service, mood, value(각 1~5), overall(네 항목 평균), revisit(Y/N), body, visited(YYYY-MM), createdAt, updatedAt |
+| `users` 계정 | username, key(소문자 아이디), salt, pinHash, createdAt |
 | `photos` 사진 | id, placeId, reviewId(비어 있으면 가게 등록 사진), owner, fileId(드라이브 파일), createdAt |
 
-- 방문자는 가입하지 않습니다. 브라우저마다 비밀 토큰이 만들어지고, 시트에는 그 **해시값(owner)** 만 저장됩니다.
-  같은 브라우저에서만 자기 가게·리뷰·사진을 고치거나 지울 수 있습니다.
-- 한 사람당 가게 하나에 리뷰 하나, 사진은 최대 3장, 같은 이름의 가게는 중복 등록되지 않습니다. 모든 검사는 서버(Apps Script)에서 합니다.
+- 참여하려면 **아이디 + 숫자 4자리 비밀번호**로 가입합니다(`users` 탭). 비밀번호는 솔트를 섞은 해시로만 저장되고, 5번 틀리면 10분간 잠깁니다.
+  글의 owner 칸에는 아이디의 해시가 저장되어, 자기 가게·리뷰·사진만 고치거나 지울 수 있습니다. 비밀번호 찾기는 없으니 잊으면 시트 주인이 users 탭에서 행을 지워 주면 같은 아이디로 다시 가입할 수 있습니다.
+- 아이디 하나당 가게 하나에 리뷰 하나, 사진은 최대 3장, 같은 이름의 가게는 중복 등록되지 않습니다. 모든 검사는 서버(Apps Script)에서 합니다.
 - 시트 주인은 시트에서 직접 행을 고치거나 지워 관리할 수 있습니다 (장난 글 삭제 등). **첫 줄(제목)과 열 순서는 바꾸지 마세요.**
 
 ## 설치 방법
@@ -61,21 +62,6 @@ apps-script/Code.gs   스프레드시트 백엔드 — 스프레드시트의 App
 ### 4. GitHub Pages로 배포
 저장소 **Settings → Pages** → Source **Deploy from a branch**, Branch `main` / `/ (root)` → 저장.
 1~2분 뒤 `https://<계정>.github.io/<저장소>/` 로 접속할 수 있습니다.
-
-## 구글 로그인 켜기 (선택)
-
-켜면 "구글 계정 1개 = 가게당 리뷰 1개"가 되고, 기기를 바꿔도 내 리뷰를 고칠 수 있습니다. 보기는 로그인 없이 됩니다.
-
-1. https://console.cloud.google.com 에서 프로젝트를 만듭니다.
-2. **Google 인증 플랫폼(OAuth 동의 화면)** → 시작하기 → 앱 이름·지원 이메일 입력, 대상 **외부** → 만들기.
-   **대상 → 앱 게시(프로덕션으로 푸시)** 를 눌러 두세요. (기본 로그인 정보만 쓰므로 구글 심사는 필요 없습니다)
-3. **클라이언트 → 클라이언트 만들기** → 유형 **웹 애플리케이션**,
-   **승인된 JavaScript 원본**에 `https://<계정>.github.io` 추가 → 만들기 → **클라이언트 ID** 복사.
-4. Apps Script 의 `GOOGLE_CLIENT_ID = ` 에 붙여넣고 저장 → `setup` 한 번 실행(새 권한 허용) →
-   **배포 → 배포 관리 → 수정 → 새 버전 → 배포**.
-5. `config.js` 의 `GOOGLE_CLIENT_ID` 에도 같은 값을 넣고 푸시.
-
-> 켜기 전에 로그인 없이 쓴 글은 시트에 그대로 남지만, 작성자가 사이트에서 고치거나 지울 수는 없게 됩니다.
 
 ## 알아둘 점
 
