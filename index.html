@@ -266,10 +266,7 @@ footer{margin-top:40px;padding-top:18px;border-top:4px solid var(--lime);font-si
       <div class="field"><label for="f-area">동네</label><input id="f-area" list="areas" maxlength="20" placeholder="예: 연수동"></div>
     </div>
     <datalist id="areas"></datalist>
-    <div class="row2">
-      <div class="field"><label for="f-addr">주소</label><input id="f-addr" maxlength="80" placeholder="충주시 …"></div>
-      <div class="field"><label for="f-phone">연락처</label><input id="f-phone" type="tel" maxlength="20" placeholder="예: 043-123-4567"></div>
-    </div>
+    <div class="field"><label for="f-addr">주소</label><input id="f-addr" maxlength="80" placeholder="충주시 …"></div>
     <div class="row2">
       <div class="field"><label for="f-sig">대표 메뉴</label><input id="f-sig" maxlength="40" placeholder="예: 올갱이해장국"></div>
       <div class="field"><label for="f-price">가격대 (1인)</label>
@@ -312,6 +309,7 @@ footer{margin-top:40px;padding-top:18px;border-top:4px solid var(--lime);font-si
 </dialog>
 
 <script src="config.js"></script>
+<script src="places.js"></script>
 <script>
 const CATS = ["한식","해장국·탕","면·냉면","고기·구이","중식","일식·회","분식","카페·디저트","기타"];
 const AREAS = ["연수동","성내동","교현동","문화동","칠금동","호암동","용산동","봉방동","금릉동","중앙탑면","동량면","수안보면","살미면","주덕읍"];
@@ -436,7 +434,7 @@ async function loadAll(){
   const res = await fetch(API + (API.includes("?") ? "&" : "?") + "t=" + Date.now());
   const j = await res.json();
   if (!j.ok) throw new Error(j.error);
-  places = j.places.map(p => ({ ...p, price: Number(p.price) || 0, phone: String(p.phone || ""), createdAt: Number(p.createdAt) || 0 }));
+  places = mergeBuiltin(j.places.map(p => ({ ...p, price: Number(p.price) || 0, phone: String(p.phone || ""), createdAt: Number(p.createdAt) || 0 })));
   reviews = j.reviews.map(r => ({ ...r,
     taste: +r.taste, service: +r.service, mood: +r.mood, value: +r.value, overall: +r.overall,
     revisit: r.revisit === "Y" || r.revisit === true, visited: String(r.visited || "").slice(0, 7),
@@ -447,6 +445,39 @@ async function loadAll(){
   ready = true;
   render();
   if (openId) renderDetail();
+}
+/* 기본 맛집 목록(places.js)을 스프레드시트 목록과 합치기.
+   같은 이름의 가게가 이미 시트에 있으면 시트 쪽을 쓰고, 비어 있는 주소·연락처 등만 채움 */
+const nameKey = s => String(s || "").replace(/\s/g, "").toLowerCase();
+function mergeBuiltin(list){
+  (window.CSL_PLACES || []).forEach(([name, category, area, address, signature, phone], i) => {
+    const k = nameKey(name);
+    const hit = list.find(p => nameKey(p.name).startsWith(k));
+    if (hit){
+      for (const [f, v] of Object.entries({ area, address, signature, phone })) if (!hit[f] && v) hit[f] = v;
+      return;
+    }
+    list.push({ id: "builtin-" + i, builtin: true, name, category, area, address, signature, phone,
+      price: 0, description: "", owner: "builtin", createdAt: 0 });
+  });
+  return list;
+}
+/* 기본 목록의 가게에 처음 리뷰를 남길 때 스프레드시트에 가게를 등록하고 실제 id를 돌려줌 */
+async function ensurePlace(pid){
+  const p = places.find(x => x.id === pid);
+  if (!p?.builtin) return pid;
+  let id;
+  try {
+    ({ id } = await call("addPlace", { name: p.name, category: p.category, area: p.area,
+      address: p.address, signature: p.signature, description: "" }));
+  } catch (e) {
+    await loadAll();   // 다른 사람이 먼저 등록한 경우
+    const q = places.find(x => !x.builtin && nameKey(x.name).startsWith(nameKey(p.name)));
+    if (!q) throw e;
+    id = q.id;
+  }
+  if (openId === pid) openId = id;
+  return id;
 }
 async function call(action, body){
   if (needLogin()){ requireLogin(); throw new Error("로그인이 필요해요. 로그인한 뒤 다시 눌러 주세요."); }
@@ -652,7 +683,7 @@ $("#addForm").addEventListener("submit", async e => {
   const btn = $("#addSubmit"); btn.disabled = true; btn.textContent = "등록 중…";
   try {
     const { id } = await call("addPlace", {
-      name, category: $("#f-cat").value, area: $("#f-area").value.trim(), address: $("#f-addr").value.trim(), phone: $("#f-phone").value.trim(),
+      name, category: $("#f-cat").value, area: $("#f-area").value.trim(), address: $("#f-addr").value.trim(),
       signature: $("#f-sig").value.trim(), price: Number($("#f-price").value), description: $("#f-desc").value.trim()
     });
     if (addPick?.items.length) await uploadPhotos(addPick.items, id, "", btn);
@@ -790,7 +821,7 @@ function renderForm(){
 
 async function saveReview(pid, form){
   const err = form.querySelector("#rvErr");
-  const body = { placeId: pid };
+  const body = {};
   for (const [k, l] of CRIT){
     const v = Number(form.querySelector(`input[name="c-${k}"]:checked`)?.value || 0);
     if (!v){ err.textContent = `'${l}' 점수를 골라 주세요.`; return; }
@@ -802,7 +833,8 @@ async function saveReview(pid, form){
   const btn = form.querySelector("#rvSubmit"); btn.disabled = true; btn.textContent = "저장 중…";
   try {
     store.set("csl-nick", nick);
-    Object.assign(body, {
+    pid = await ensurePlace(pid);
+    Object.assign(body, { placeId: pid,
       nickname: nick, revisit: form.querySelector("#rv-revisit").checked,
       body: form.querySelector("#rv-text").value.trim(), visited: form.querySelector("#rv-date").value || ""
     });
