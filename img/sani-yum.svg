@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 270 330">
+  <!-- 사니: 맛있게 먹는 얼굴 + 국수 그릇 (원본 2D 그림체) -->
+  <ellipse cx="22" cy="190" rx="21" ry="26" fill="#FAC6A8"/><ellipse cx="24" cy="192" rx="10" ry="16" fill="#EE937A"/>
+  <ellipse cx="248" cy="196" rx="21" ry="26" fill="#FAC6A8"/><ellipse cx="246" cy="198" rx="10" ry="16" fill="#EE937A"/>
+  <path d="M28 150C28 118 70 104 134 104S240 120 240 152V196C240 240 196 264 134 264S28 240 28 196Z" fill="#FAC6A8"/>
+  <path d="M40 112C58 64 96 4 128 3C160 2 206 60 226 112Z" fill="#539B5A"/>
+  <path d="M50 88C88 70 180 68 216 84L224 104C182 90 90 92 44 108Z" fill="#347047"/>
+  <path d="M6 138C4 110 58 94 132 94S262 108 262 142C262 158 250 162 238 156C204 136 170 128 132 128S64 134 34 150C20 158 7 154 6 138Z" fill="#539B5A"/>
+  <path d="M160 64l10-1 1 11 9-1-1-11 10-1 2 32-10 1-1-12-9 1 1 12-10 1Z" fill="#8BC96B"/>
+  <path d="M80 140q15-8 30 0" stroke="#744634" stroke-width="10" stroke-linecap="round" fill="none"/>
+  <path d="M160 142q15-6 30 4" stroke="#744634" stroke-width="10" stroke-linecap="round" fill="none"/>
+  <path d="M80 180q15-18 30 0M158 182q15-18 30 0" stroke="#4D2B1E" stroke-width="7" stroke-linecap="round" fill="none"/>
+  <ellipse cx="134" cy="188" rx="6" ry="4" fill="#EE937A"/>
+  <path d="M118 202q16 22 32 0Z" fill="#4D2B1E"/><path d="M125 212q9-6 18 0q-9 6-18 0Z" fill="#EE937A"/>
+  <ellipse cx="72" cy="206" rx="20" ry="14" fill="#EE937A"/><ellipse cx="196" cy="210" rx="20" ry="14" fill="#EE937A"/>
+  <!-- 젓가락 + 국수 -->
+  <path d="M150 236L214 150" stroke="#744634" stroke-width="7" stroke-linecap="round"/>
+  <path d="M162 240L226 158" stroke="#744634" stroke-width="7" stroke-linecap="round"/>
+  <path d="M128 210C130 232 136 250 140 268M137 212C140 234 146 250 150 268M146 212C150 232 156 250 160 268" stroke="#FBD136" stroke-width="7" stroke-linecap="round" fill="none"/>
+  <!-- 그릇 -->
+  <path d="M60 262H214C214 300 180 326 137 326S60 300 60 262Z" fill="#EC7F24"/>
+  <path d="M56 258H218V270H56Z" rx="6" fill="#FBD136"/>
+  <path d="M100 290h74" stroke="#FBD136" stroke-width="6" stroke-linecap="round"/>
+</svg>

@@ -11,7 +11,7 @@
 <style>
 :root{
   --bg:#FAFBF3; --surface:#FFFFFF; --ink:#1B2314; --muted:#5C6653; --line:#E0E6D2;
-  --brand:#3D8A16; --brand-soft:#EDF6DF; --lime:#8DC63F; --yellow:#FFC20E; --gold:#8A6300; --gold-soft:#FFF3C4; --focus:#3D8A16; --ph:#EDF2E0;
+  --brand:#3D8A16; --brand-soft:#EDF6DF; --lime:#8DC63F; --yellow:#FFC20E; --gold:#8A6300; --gold-soft:#FFF3C4; --focus:#3D8A16; --ph:#EDF2E0; --deco-op:.13;
   --serif:"Gowun Batang","Nanum Myeongjo",serif;
   --sans:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
@@ -20,13 +20,13 @@
   :root:not([data-theme="light"]){
     color-scheme:dark;
     --bg:#11150D; --surface:#192014; --ink:#EEF3E6; --muted:#A2AC96; --line:#2D3725;
-    --brand:#A6D96A; --brand-soft:#243219; --lime:#8DC63F; --yellow:#FFC20E; --gold:#FFD34D; --gold-soft:#372F12; --focus:#A6D96A; --ph:#212A1A;
+    --brand:#A6D96A; --brand-soft:#243219; --lime:#8DC63F; --yellow:#FFC20E; --gold:#FFD34D; --gold-soft:#372F12; --focus:#A6D96A; --ph:#212A1A; --deco-op:.07;
   }
 }
 :root[data-theme="dark"]{
   color-scheme:dark;
   --bg:#11150D; --surface:#192014; --ink:#EEF3E6; --muted:#A2AC96; --line:#2D3725;
-  --brand:#A6D96A; --brand-soft:#243219; --lime:#8DC63F; --yellow:#FFC20E; --gold:#FFD34D; --gold-soft:#372F12; --focus:#A6D96A; --ph:#212A1A;
+  --brand:#A6D96A; --brand-soft:#243219; --lime:#8DC63F; --yellow:#FFC20E; --gold:#FFD34D; --gold-soft:#372F12; --focus:#A6D96A; --ph:#212A1A; --deco-op:.07;
 }
 *{box-sizing:border-box}
 html{color-scheme:light}
@@ -194,6 +194,26 @@ dialog::backdrop{background:rgba(12,18,8,.55)}
 #imgDlg .x{position:absolute;top:6px;right:8px;color:#fff;text-shadow:0 1px 3px #000}
 #imgDlg .ld{color:#ccc;padding:60px 80px;font-size:14px}
 
+/* 배경: 사니·노니 캐릭터를 옅게 흩뿌림 */
+.bgdeco{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.bgdeco img{position:absolute;opacity:var(--deco-op);transform:rotate(var(--r,0deg));height:auto}
+.bgdeco .d1{left:2%;top:7%;width:150px;--r:-8deg}
+.bgdeco .d2{right:2%;top:14%;width:175px;--r:6deg}
+.bgdeco .d3{left:5%;top:50%;width:100px;--r:-4deg}
+.bgdeco .d4{right:3%;top:56%;width:160px;--r:-5deg}
+.bgdeco .d5{left:1%;top:78%;width:130px;--r:8deg}
+.bgdeco .d6{right:24%;top:3%;width:58px;--r:15deg}
+.bgdeco .d7{left:26%;top:88%;width:70px;--r:-6deg}
+.bgdeco .d8{left:42%;top:66%;width:50px;--r:-12deg}
+.bgdeco .d9{right:30%;top:86%;width:62px;--r:10deg}
+.bgdeco .d10{right:40%;top:34%;width:72px;--r:4deg}
+@media (max-width:720px){
+  .bgdeco img{width:auto}
+  .bgdeco .d1{width:96px;top:4%} .bgdeco .d2{width:104px;top:40%} .bgdeco .d4{width:100px;top:74%}
+  .bgdeco .d3,.bgdeco .d5,.bgdeco .d8,.bgdeco .d9,.bgdeco .d10{display:none}
+  .bgdeco .d6{width:40px} .bgdeco .d7{width:48px}
+}
+
 footer{margin-top:40px;padding-top:18px;border-top:4px solid var(--lime);font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
 
 @media (max-width:720px){
@@ -214,6 +234,13 @@ footer{margin-top:40px;padding-top:18px;border-top:4px solid var(--lime);font-si
 </style>
 </head>
 <body>
+<div class="bgdeco" aria-hidden="true">
+  <img class="d1" src="img/sani.png" alt=""><img class="d2" src="img/noni-apple.svg" alt="">
+  <img class="d3" src="img/bowl.svg" alt=""><img class="d4" src="img/sani-yum.svg" alt="">
+  <img class="d5" src="img/noni.png" alt=""><img class="d6" src="img/apple.svg" alt="">
+  <img class="d7" src="img/rice.svg" alt=""><img class="d8" src="img/apple.svg" alt="">
+  <img class="d9" src="img/rice.svg" alt=""><img class="d10" src="img/bowl.svg" alt="">
+</div>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="blossom" viewBox="0 0 24 24"><path d="M12 7.6c-1.3-1-3-1.4-4.6-.9C4.8 7.5 3.5 10.1 4 13.1c.6 3.9 3.3 7.9 5.6 7.9.9 0 1.4-.5 2.4-.5s1.5.5 2.4.5c2.3 0 5-4 5.6-7.9.5-3-.8-5.6-3.4-6.4-1.6-.5-3.3-.1-4.6.9Z"/><path d="M11.3 7.5c-.1-2.1.4-3.8 1.7-5.2l1 .7c-1.1 1.2-1.5 2.6-1.4 4.5Z"/><path style="fill:var(--yellow)" d="M13.6 5.6c.5-2.2 2.4-3.5 4.8-3.4-.4 2.2-2.4 3.6-4.8 3.4Z"/></symbol>
