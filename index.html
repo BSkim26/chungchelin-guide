@@ -130,6 +130,9 @@ dialog::backdrop{background:rgba(12,18,8,.55)}
 .field textarea{min-height:96px;resize:vertical}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
 .hint{font-size:12.5px;color:var(--muted)}
+.prog{height:5px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:14px}
+.prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--lime),var(--yellow));transition:width .5s}
+.prog-t{font-size:12.5px;color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums}
 .err{color:var(--brand);font-size:13px;margin-top:10px;min-height:1em}
 .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;flex-wrap:wrap}
 
@@ -585,9 +588,10 @@ function photoPicker(el, errEl, keep = []){
   draw();
   return st;
 }
-async function uploadPhotos(items, placeId, reviewId, btn){
+async function uploadPhotos(items, placeId, reviewId, btn, onEach){
   for (let i = 0; i < items.length; i++){
-    if (btn) btn.textContent = `사진 올리는 중… ${i + 1}/${items.length}`;
+    if (onEach) onEach(i);
+    else if (btn) btn.textContent = `사진 올리는 중… ${i + 1}/${items.length}`;
     await call("addPhoto", { placeId, reviewId: reviewId || "", data: items[i].data });
   }
 }
@@ -860,20 +864,44 @@ async function saveReview(pid, form){
   const nick = form.querySelector("#rv-nick").value.trim();
   if (!nick){ err.textContent = "닉네임을 입력해 주세요."; return; }
   if (rvPick.busy){ err.textContent = "사진을 줄이는 중이에요. 잠시 후 다시 눌러 주세요."; return; }
-  const btn = form.querySelector("#rvSubmit"); btn.disabled = true; btn.textContent = "저장 중…";
+  const btn = form.querySelector("#rvSubmit"); btn.disabled = true;
+  // 진행 상황: 단계마다 서버 요청이 하나씩 나가므로 몇 번째 단계인지 보여줌
+  const steps = [
+    ...(places.find(x => x.id === pid)?.builtin ? ["가게 등록하는 중"] : []),
+    "리뷰 저장하는 중",
+    ...(rvPick.removed.length ? ["지운 사진 정리하는 중"] : []),
+    ...rvPick.items.map((_, i, a) => `사진 올리는 중 (${i + 1}/${a.length}장)`),
+    "목록 새로 고치는 중"
+  ];
+  const prog = document.createElement("div");
+  prog.innerHTML = `<div class="prog"><i></i></div><div class="prog-t" aria-live="polite"></div>`;
+  err.textContent = ""; err.before(prog);
+  let k = 0;
+  const step = () => {
+    k++;
+    btn.textContent = `저장 중… ${k}/${steps.length}`;
+    prog.querySelector("i").style.width = ((k - 0.5) / steps.length * 100) + "%";
+    prog.querySelector(".prog-t").textContent = `${k}/${steps.length}단계 · ${steps[k - 1]}…` +
+      (rvPick.items.length ? " 사진은 한 장에 5초 정도 걸려요." : "");
+  };
   try {
     store.set("csl-nick", nick);
+    if (steps[0] === "가게 등록하는 중") step();
     pid = await ensurePlace(pid);
     Object.assign(body, { placeId: pid,
       nickname: nick, revisit: form.querySelector("#rv-revisit").checked,
       body: form.querySelector("#rv-text").value.trim(), visited: form.querySelector("#rv-date").value || ""
     });
+    step();
     const { id } = await call("saveReview", body);
-    await removePhotos(rvPick.removed);
-    if (rvPick.items.length) await uploadPhotos(rvPick.items, pid, id, btn);
+    if (rvPick.removed.length){ step(); await removePhotos(rvPick.removed); }
+    if (rvPick.items.length) await uploadPhotos(rvPick.items, pid, id, btn, step);
+    step();
     await loadAll();
+    prog.remove();
     if (openId === pid){ renderForm(); $("#rvErr").textContent = "저장했어요."; }
   } catch (e) {
+    prog.remove();
     err.textContent = errMsg(e);
     btn.disabled = false; btn.textContent = "다시 시도";
   }
