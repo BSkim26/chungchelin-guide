@@ -266,7 +266,10 @@ footer{margin-top:40px;padding-top:18px;border-top:4px solid var(--lime);font-si
       <div class="field"><label for="f-area">동네</label><input id="f-area" list="areas" maxlength="20" placeholder="예: 연수동"></div>
     </div>
     <datalist id="areas"></datalist>
-    <div class="field"><label for="f-addr">주소</label><input id="f-addr" maxlength="80" placeholder="충주시 …"></div>
+    <div class="row2">
+      <div class="field"><label for="f-addr">주소</label><input id="f-addr" maxlength="80" placeholder="충주시 …"></div>
+      <div class="field"><label for="f-phone">연락처</label><input id="f-phone" type="tel" maxlength="20" placeholder="예: 043-123-4567"></div>
+    </div>
     <div class="row2">
       <div class="field"><label for="f-sig">대표 메뉴</label><input id="f-sig" maxlength="40" placeholder="예: 올갱이해장국"></div>
       <div class="field"><label for="f-price">가격대 (1인)</label>
@@ -433,7 +436,7 @@ async function loadAll(){
   const res = await fetch(API + (API.includes("?") ? "&" : "?") + "t=" + Date.now());
   const j = await res.json();
   if (!j.ok) throw new Error(j.error);
-  places = j.places.map(p => ({ ...p, price: Number(p.price) || 2, createdAt: Number(p.createdAt) || 0 }));
+  places = j.places.map(p => ({ ...p, price: Number(p.price) || 0, phone: String(p.phone || ""), createdAt: Number(p.createdAt) || 0 }));
   reviews = j.reviews.map(r => ({ ...r,
     taste: +r.taste, service: +r.service, mood: +r.mood, value: +r.value, overall: +r.overall,
     revisit: r.revisit === "Y" || r.revisit === true, visited: String(r.visited || "").slice(0, 7),
@@ -608,7 +611,7 @@ function render(){
       <div class="cover">${ph.length ? `<img src="${esc(photoUrl(ph[0], 400))}" alt="" loading="lazy">${ph.length > 1 ? `<span class="pc">사진 ${ph.length}</span>` : ""}` : appleCover(s.level)}</div>
       <div>
         <h2>${esc(p.name)}</h2>
-        <div class="meta"><span>${esc(p.category)}</span>${p.area ? `<span>${esc(p.area)}</span>` : ""}<span>${won(p.price)}</span></div>
+        <div class="meta"><span>${esc(p.category)}</span>${p.area ? `<span>${esc(p.area)}</span>` : ""}${p.price ? `<span>${won(p.price)}</span>` : ""}</div>
         ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ""}
         ${p.signature ? `<div class="sig"><b>대표 메뉴</b> ${esc(p.signature)}</div>` : ""}
         ${s.n ? `<div class="crit-line">${CRIT.map(([k, l]) => `<span>${l} <b>${s.crit[k].toFixed(1)}</b></span>`).join("")}</div>` : ""}
@@ -649,7 +652,7 @@ $("#addForm").addEventListener("submit", async e => {
   const btn = $("#addSubmit"); btn.disabled = true; btn.textContent = "등록 중…";
   try {
     const { id } = await call("addPlace", {
-      name, category: $("#f-cat").value, area: $("#f-area").value.trim(), address: $("#f-addr").value.trim(),
+      name, category: $("#f-cat").value, area: $("#f-area").value.trim(), address: $("#f-addr").value.trim(), phone: $("#f-phone").value.trim(),
       signature: $("#f-sig").value.trim(), price: Number($("#f-price").value), description: $("#f-desc").value.trim()
     });
     if (addPick?.items.length) await uploadPhotos(addPick.items, id, "", btn);
@@ -679,7 +682,7 @@ function renderDetail(){
     <div class="dlg-head">
       <div>
         <h3 id="detT">${esc(p.name)}</h3>
-        <div class="meta"><span>${esc(p.category)}</span>${p.area ? `<span>${esc(p.area)}</span>` : ""}<span>${won(p.price)}</span></div>
+        <div class="meta"><span>${esc(p.category)}</span>${p.area ? `<span>${esc(p.area)}</span>` : ""}${p.price ? `<span>${won(p.price)}</span>` : ""}</div>
       </div>
       <button class="x" type="button" data-close aria-label="닫기">×</button>
     </div>
@@ -687,6 +690,7 @@ function renderDetail(){
     ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ""}
     ${p.signature ? `<div class="sig"><b>대표 메뉴</b> ${esc(p.signature)}</div>` : ""}
     ${p.address ? `<div class="sig"><b>주소</b> ${esc(p.address)} · <a href="https://map.naver.com/p/search/${encodeURIComponent(p.address)}" target="_blank" rel="noopener">지도에서 보기</a></div>` : ""}
+    ${p.phone ? `<div class="sig"><b>연락처</b> <a href="tel:${esc(p.phone.replace(/[^0-9+]/g, ""))}">${esc(p.phone)}</a></div>` : ""}
     <div class="summary">
       <div class="score" style="align-items:flex-start;text-align:left">
         <div class="num" style="font-size:44px">${s.n ? s.avg.toFixed(1) : "–"}<small> / 5</small></div>
