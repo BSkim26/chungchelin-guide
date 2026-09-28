@@ -46,6 +46,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 .eyebrow::before{content:"";width:14px;height:14px;background:linear-gradient(135deg,var(--lime) 0 50%,var(--yellow) 50% 100%);border-radius:2px;flex:none}
 h1{font-family:var(--serif);font-weight:700;font-size:clamp(40px,7vw,68px);line-height:1.02;margin:6px 0 10px;letter-spacing:-.02em;text-wrap:balance}
 h1 .r{color:var(--brand)}
+h1 .y{color:#F5B800}
+:root[data-theme="dark"] h1 .y{color:var(--yellow)}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) h1 .y{color:var(--yellow)} }
 .lede{margin:0;color:var(--muted);max-width:52ch}
 .btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--lime);background:var(--lime);color:#1B2314;padding:10px 18px;border-radius:2px;cursor:pointer;font-weight:600;white-space:nowrap}
 .btn:hover{background:var(--yellow);border-color:var(--yellow)}
@@ -250,7 +253,7 @@ footer{margin-top:40px;padding-top:18px;border-top:4px solid var(--lime);font-si
   <header class="mast">
     <div>
       <div class="eyebrow">Chungju · 2026 Edition</div>
-      <h1>충<span class="r">슐랭</span> 가이드</h1>
+      <h1><span class="y">충</span><span class="r">슐랭</span> 가이드</h1>
       <p class="lede">충주 사람들이 직접 올리고, 가본 사람이 맛·서비스·분위기·가성비를 평가하는 맛집 안내서. 평점에 따라 사과가 붙고, 사과를 누르면 그 등급 맛집만 모아 볼 수 있어요.</p>
     </div>
     <div class="head-actions"><div id="authBox"></div><button class="btn" id="addBtn" type="button">+ 맛집 등록</button></div>
